@@ -29,12 +29,14 @@ editor.once('load', () => {
         'atlas': true,
         'ply': true,
         'wasm': true,
-        'sog': true
+        'sog': true,
+        'yaml': true,
+        'yml': true
     };
 
     const typeToExt = {
         'scene': ['fbx', 'dae', 'obj', '3ds', 'glb'],
-        'text': ['txt', 'xml', 'atlas'],
+        'text': ['txt', 'xml', 'atlas', 'yaml', 'yml'],
         'html': ['html'],
         'css': ['css'],
         'json': ['json'],

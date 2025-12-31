@@ -981,4 +981,9 @@ editor.once('load', () => {
     editor.method('assets:contextmenu:add', (data) => {
         return createCustomContextMenu(data, menu);
     });
+
+    // Add item to the create menu (+ button menu)
+    editor.method('assets:contextmenu:addcreate', (data) => {
+        return createCustomContextMenu(data, menuCreate);
+    });
 });

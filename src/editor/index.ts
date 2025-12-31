@@ -447,3 +447,6 @@ import './templates/migrations/fix-corrupted-instances';
 
 // plugins
 import './plugins/plugins';
+
+// PajamaDot Story Extensions
+import '@/pajamadot';
