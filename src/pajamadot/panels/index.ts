@@ -10,3 +10,4 @@ import './story-menu';
 import './aigc-menu';
 import './texture-generation-panel';
 import './mesh-generation-panel';
+import './asset-generation-modal';

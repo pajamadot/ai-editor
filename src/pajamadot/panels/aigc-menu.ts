@@ -117,6 +117,37 @@ class AIGCMenu {
         separator3.dom.style.opacity = '0.3';
         this._menu.append(separator3);
 
+        // Asset Generator - full modal with all generation types
+        const assetGenItem = new MenuItem({
+            text: 'Asset Generator...',
+            icon: 'E195', // Magic wand icon
+            onSelect: () => {
+                editor.call('picker:pajamadot:assetgen');
+                this._menu.open = false;
+            }
+        });
+        this._menu.append(assetGenItem);
+
+        // Generation History
+        const historyItem = new MenuItem({
+            text: 'Generation History',
+            icon: 'E164', // Clock/history icon
+            onSelect: () => {
+                editor.call('picker:pajamadot:assetgen', 'history');
+                this._menu.open = false;
+            }
+        });
+        this._menu.append(historyItem);
+
+        // Separator
+        const separator4 = new MenuItem({
+            text: '─────────────',
+            class: 'aigc-separator'
+        });
+        separator4.dom.style.pointerEvents = 'none';
+        separator4.dom.style.opacity = '0.3';
+        this._menu.append(separator4);
+
         // Settings / API Token
         const settingsItem = new MenuItem({
             text: 'API Settings...',

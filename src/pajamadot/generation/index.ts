@@ -15,6 +15,7 @@ export * from './token-manager';
 export * from './generation-client';
 export * from './texture-client';
 export * from './mesh-client';
+export * from './video-client';
 
 // Asset import utilities
 export * from './asset-importer';
