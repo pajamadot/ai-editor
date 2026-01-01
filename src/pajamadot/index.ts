@@ -43,6 +43,9 @@ import './entity';
 // AIGC Generation (Phase 9)
 import './generation';
 
+// Asset Browser Integration (Phase 10) - Context menus, overlays, filters
+import './browser';
+
 // Inspector integration (must be last - overrides assets:edit after everything is loaded)
 import './inspector/inspector-integration';
 
