@@ -16,7 +16,15 @@ import type {
     TextureGenerationResult,
     MeshGenerationRequest,
     MeshGenerationResult,
-    APIError
+    APIError,
+    GenerationJob,
+    GenerationJobStatus,
+    GenerationListResponse,
+    GenerationHistoryItem,
+    GenerationHistoryResponse,
+    CreditTransaction,
+    CreditHistoryResponse,
+    CreditPricingResponse
 } from './types';
 
 class GenerationClient {
@@ -133,6 +141,134 @@ class GenerationClient {
                 aspectRatio: request.aspectRatio ?? '1:1',
                 style: request.style
             })
+        });
+    }
+
+    // ============================================================
+    // Generation Job Management
+    // ============================================================
+
+    /**
+     * Get status of a specific generation job
+     */
+    async getJobStatus(requestId: string): Promise<GenerationJob> {
+        return this.request<GenerationJob>(`/generations/${requestId}/status`, {
+            method: 'GET'
+        });
+    }
+
+    /**
+     * List all generation jobs
+     */
+    async listJobs(options?: {
+        status?: GenerationJobStatus;
+        limit?: number;
+        offset?: number;
+    }): Promise<GenerationListResponse> {
+        const params = new URLSearchParams();
+        if (options?.status) params.set('status', options.status);
+        if (options?.limit) params.set('limit', options.limit.toString());
+        if (options?.offset) params.set('offset', options.offset.toString());
+
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return this.request<GenerationListResponse>(`/generations/list${query}`, {
+            method: 'GET'
+        });
+    }
+
+    /**
+     * Get active (in-progress) jobs
+     */
+    async getActiveJobs(): Promise<GenerationJob[]> {
+        const response = await this.listJobs({ status: 'in_progress', limit: 50 });
+        return response.generations;
+    }
+
+    /**
+     * Poll a job until completion
+     */
+    async pollUntilComplete(
+        requestId: string,
+        options?: {
+            interval?: number;
+            maxAttempts?: number;
+            onProgress?: (job: GenerationJob) => void;
+        }
+    ): Promise<GenerationJob> {
+        const interval = options?.interval ?? 2000;
+        const maxAttempts = options?.maxAttempts ?? 150; // 5 minutes at 2s intervals
+
+        let attempts = 0;
+        while (attempts < maxAttempts) {
+            attempts++;
+            const job = await this.getJobStatus(requestId);
+
+            if (options?.onProgress) {
+                options.onProgress(job);
+            }
+
+            if (job.status === 'completed' || job.status === 'failed') {
+                return job;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, interval));
+        }
+
+        throw new Error(`Job ${requestId} timed out after ${maxAttempts} attempts`);
+    }
+
+    // ============================================================
+    // Generation History
+    // ============================================================
+
+    /**
+     * Get generation history (media + text unified)
+     */
+    async getHistory(options?: {
+        type?: 'media' | 'text' | 'all';
+        limit?: number;
+        offset?: number;
+    }): Promise<GenerationHistoryResponse> {
+        const params = new URLSearchParams();
+        if (options?.type && options.type !== 'all') params.set('type', options.type);
+        if (options?.limit) params.set('limit', options.limit.toString());
+        if (options?.offset) params.set('offset', options.offset.toString());
+
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return this.request<GenerationHistoryResponse>(`/generations/history${query}`, {
+            method: 'GET'
+        });
+    }
+
+    // ============================================================
+    // Credit Management
+    // ============================================================
+
+    /**
+     * Get credit transaction history
+     */
+    async getCreditHistory(options?: {
+        type?: 'grant' | 'spend' | 'refund' | 'all';
+        limit?: number;
+        offset?: number;
+    }): Promise<CreditHistoryResponse> {
+        const params = new URLSearchParams();
+        if (options?.type && options.type !== 'all') params.set('type', options.type);
+        if (options?.limit) params.set('limit', options.limit.toString());
+        if (options?.offset) params.set('offset', options.offset.toString());
+
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return this.request<CreditHistoryResponse>(`/credits/history${query}`, {
+            method: 'GET'
+        });
+    }
+
+    /**
+     * Get credit pricing for all endpoints
+     */
+    async getCreditPricing(): Promise<CreditPricingResponse> {
+        return this.request<CreditPricingResponse>('/credits/pricing', {
+            method: 'GET'
         });
     }
 }

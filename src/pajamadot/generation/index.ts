@@ -20,6 +20,9 @@ export * from './video-client';
 // Asset import utilities
 export * from './asset-importer';
 
+// Jobs manager (tracks active generation jobs)
+export * from './jobs-manager';
+
 // Token settings picker (registers editor methods)
 // Has internal checks for editor availability
 import './token-settings';

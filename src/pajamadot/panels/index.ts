@@ -11,3 +11,11 @@ import './aigc-menu';
 import './texture-generation-panel';
 import './mesh-generation-panel';
 import './asset-generation-modal';
+
+// Generation job management and history
+import './active-jobs-panel';
+import './generation-history-panel';
+
+// Credits display and history
+import './credits-display';
+import './credits-history-panel';

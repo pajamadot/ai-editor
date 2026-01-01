@@ -112,3 +112,113 @@ export interface MeshGenerationResult {
     creditsRemaining: number;
     error?: string;
 }
+
+// ============================================================
+// Generation Job Management Types
+// ============================================================
+
+export type GenerationJobStatus = 'pending' | 'in_progress' | 'downloading' | 'uploading' | 'completed' | 'failed';
+
+export type MediaType = 'image' | 'video' | 'audio' | 'texture' | 'mesh' | 'voiceover' | 'music';
+
+export interface GenerationJob {
+    requestId: string;
+    projectId?: string;
+    tenantId?: string;
+    userId?: string;
+    endpointId: string;
+    mediaType: MediaType;
+    status: GenerationJobStatus;
+    progress: number;
+    generatedUrl?: string;
+    assetId?: string;
+    errorMessage?: string;
+    createdAt: number;
+    completedAt?: number;
+    creditsCost?: number;
+    creditsTransactionId?: string;
+    input?: Record<string, unknown>;
+}
+
+export interface StartGenerationResponse {
+    requestId: string;
+    status: GenerationJobStatus;
+    estimatedCredits?: number;
+    estimatedTime?: number;
+}
+
+export interface GenerationListResponse {
+    generations: GenerationJob[];
+    total: number;
+    hasMore: boolean;
+}
+
+// ============================================================
+// Generation History Types
+// ============================================================
+
+export interface GenerationHistoryItem {
+    id: string;
+    projectId?: string;
+    tenantId?: string;
+    userId?: string;
+    generationType: 'media' | 'text';
+    model: string;
+    mediaType: string;
+    inputPreview: string;
+    status: GenerationJobStatus;
+    progress: number;
+    resultPreview?: string;
+    errorMessage?: string;
+    creditsCost?: number;
+    createdAt: number;
+    completedAt?: number;
+    assetId?: string;
+    thumbnailUrl?: string;
+}
+
+export interface GenerationHistoryResponse {
+    items: GenerationHistoryItem[];
+    total: number;
+    hasMore: boolean;
+}
+
+// ============================================================
+// Credit Transaction Types
+// ============================================================
+
+export type CreditTransactionType = 'grant' | 'spend' | 'reserve' | 'refund';
+export type CreditTransactionStatus = 'pending' | 'confirmed' | 'cancelled';
+
+export interface CreditTransaction {
+    id: string;
+    userId?: string;
+    tenantId?: string;
+    amount: number;
+    transactionType: CreditTransactionType;
+    status: CreditTransactionStatus;
+    referenceType?: string;
+    referenceId?: string;
+    description: string;
+    createdAt: number;
+    mediaType?: string;
+    modelOrEndpoint?: string;
+    generationStatus?: string;
+}
+
+export interface CreditHistoryResponse {
+    transactions: CreditTransaction[];
+    total: number;
+    hasMore: boolean;
+}
+
+export interface CreditPricing {
+    endpointId: string;
+    baseCredits: number;
+    displayName: string;
+    description?: string;
+}
+
+export interface CreditPricingResponse {
+    pricing: CreditPricing[];
+}
