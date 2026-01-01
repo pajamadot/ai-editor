@@ -3,9 +3,7 @@
  * Adds AI generation tools to the PlayCanvas Editor toolbar and menus
  */
 
-import { Button, Menu, MenuItem, Label } from '@playcanvas/pcui';
-
-import { LegacyTooltip } from '@/common/ui/tooltip';
+import { Menu, MenuItem, Label } from '@playcanvas/pcui';
 
 import { generationClient } from '../generation/generation-client';
 
@@ -244,37 +242,11 @@ function initAIGCMenu(): void {
         aigcMenu?.refreshCredits();
     });
 
-    // Add toolbar button at the bottom (before Discord)
-    const toolbar = editor.call('layout.toolbar');
-    if (toolbar) {
-        // Create button following Discord pattern
-        const aigcBtn = new Button({
-            class: ['pc-icon', 'aigc', 'bottom'],
-            icon: 'E195' // Magic wand / sparkle icon
-        });
-
-        aigcBtn.on('click', () => {
-            aigcMenu?.toggle(aigcBtn.dom);
-        });
-
-        toolbar.append(aigcBtn);
-
-        // Add tooltip (align left like other bottom buttons)
-        LegacyTooltip.attach({
-            target: aigcBtn.dom,
-            text: 'PajamaDot AI Tools',
-            align: 'left',
-            root: root
-        });
-
-        // Move before Discord button
-        setTimeout(() => {
-            const discordBtn = toolbar.dom.querySelector('.discord');
-            if (discordBtn) {
-                toolbar.dom.insertBefore(aigcBtn.dom, discordBtn);
-            }
-        }, 50);
-    }
+    // NOTE: Toolbar button removed - AIGC features are accessed through:
+    // - Right-click context menus on assets
+    // - Asset browser "+" create menu
+    // - Asset inspector AI panels
+    // - Direct modal calls: editor.call('picker:pajamadot:assetgen')
 
     // Add styles
     addAIGCMenuStyles();
@@ -292,10 +264,6 @@ function addAIGCMenuStyles(): void {
     const styles = document.createElement('style');
     styles.id = styleId;
     styles.textContent = `
-        /* AIGC toolbar button - purple accent on hover */
-        #layout-toolbar .aigc.pcui-button:hover .pcui-icon {
-            color: #a855f7;
-        }
         /* Menu credits header */
         .aigc-credits-item {
             background: rgba(74, 144, 217, 0.1);
