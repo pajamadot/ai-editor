@@ -3,229 +3,16 @@
  * Adds AI generation options to the PlayCanvas asset browser context menu
  */
 
-import { Menu, MenuItem } from '@playcanvas/pcui';
-
 declare const editor: any;
 
 /**
- * Get AI menu items for texture assets
- */
-function getTextureMenuItems(asset: any): MenuItem[] {
-    return [
-        new MenuItem({
-            text: 'Generate Variant',
-            icon: 'E195', // Magic wand
-            onSelect: () => {
-                const prompt = asset.get('meta.aigc.prompt') || asset.get('name');
-                editor.call('pajamadot:generate:texture', { prompt, variant: true });
-            }
-        }),
-        new MenuItem({
-            text: 'Upscale 2x',
-            icon: 'E149', // Expand
-            onSelect: () => {
-                editor.call('pajamadot:quick:upscale', asset.get('id'), 2);
-            }
-        }),
-        new MenuItem({
-            text: 'Upscale 4x',
-            icon: 'E149', // Expand
-            onSelect: () => {
-                editor.call('pajamadot:quick:upscale', asset.get('id'), 4);
-            }
-        }),
-        new MenuItem({
-            text: 'Generate PBR Set',
-            icon: 'E207', // 3D cube
-            onSelect: () => {
-                editor.call('pajamadot:quick:pbr', asset.get('id'));
-            }
-        }),
-        new MenuItem({
-            text: 'Remove Background',
-            icon: 'E163', // Cut
-            onSelect: () => {
-                editor.call('pajamadot:quick:remove-bg', asset.get('id'));
-            }
-        })
-    ];
-}
-
-/**
- * Get AI menu items for material assets
- */
-function getMaterialMenuItems(asset: any): MenuItem[] {
-    return [
-        new MenuItem({
-            text: 'Generate All Textures',
-            icon: 'E195', // Magic wand
-            onSelect: () => {
-                const name = asset.get('name') || 'material';
-                editor.call('pajamadot:generate:material-textures', {
-                    materialId: asset.get('id'),
-                    prompt: name,
-                    slots: ['diffuse', 'normal', 'roughness', 'ao']
-                });
-            }
-        }),
-        new MenuItem({
-            text: 'Generate Diffuse',
-            icon: 'E159', // Texture
-            onSelect: () => {
-                editor.call('pajamadot:generate:material-textures', {
-                    materialId: asset.get('id'),
-                    slots: ['diffuse']
-                });
-            }
-        }),
-        new MenuItem({
-            text: 'Generate Normal Map',
-            icon: 'E159', // Texture
-            onSelect: () => {
-                editor.call('pajamadot:generate:material-textures', {
-                    materialId: asset.get('id'),
-                    slots: ['normal']
-                });
-            }
-        }),
-        new MenuItem({
-            text: 'Generate Roughness',
-            icon: 'E159', // Texture
-            onSelect: () => {
-                editor.call('pajamadot:generate:material-textures', {
-                    materialId: asset.get('id'),
-                    slots: ['roughness']
-                });
-            }
-        })
-    ];
-}
-
-/**
- * Get AI menu items for model/container assets
- */
-function getModelMenuItems(asset: any): MenuItem[] {
-    return [
-        new MenuItem({
-            text: 'Generate Texture',
-            icon: 'E159', // Texture
-            onSelect: () => {
-                editor.call('pajamadot:generate:model-texture', {
-                    modelId: asset.get('id')
-                });
-            }
-        }),
-        new MenuItem({
-            text: 'Re-texture with AI',
-            icon: 'E195', // Magic wand
-            onSelect: () => {
-                editor.call('picker:pajamadot:assetgen', 'texture');
-            }
-        })
-    ];
-}
-
-/**
- * Get AI menu items for image assets (source files)
- */
-function getImageMenuItems(asset: any): MenuItem[] {
-    return [
-        new MenuItem({
-            text: 'Generate 3D Model',
-            icon: 'E207', // 3D cube
-            onSelect: async () => {
-                // Get the image URL and generate a 3D model from it
-                const url = await editor.call('assets:get:url', asset.get('id'));
-                editor.call('pajamadot:generate:mesh', { imageUrl: url });
-            }
-        }),
-        new MenuItem({
-            text: 'Upscale 2x',
-            icon: 'E149', // Expand
-            onSelect: () => {
-                editor.call('pajamadot:quick:upscale', asset.get('id'), 2);
-            }
-        }),
-        new MenuItem({
-            text: 'Upscale 4x',
-            icon: 'E149', // Expand
-            onSelect: () => {
-                editor.call('pajamadot:quick:upscale', asset.get('id'), 4);
-            }
-        }),
-        new MenuItem({
-            text: 'Remove Background',
-            icon: 'E163', // Cut
-            onSelect: () => {
-                editor.call('pajamadot:quick:remove-bg', asset.get('id'));
-            }
-        })
-    ];
-}
-
-/**
- * Get AI menu items for folder
- */
-function getFolderMenuItems(asset: any): MenuItem[] {
-    return [
-        new MenuItem({
-            text: 'Generate Assets Here...',
-            icon: 'E195', // Magic wand
-            onSelect: () => {
-                // Open asset generator with this folder as target
-                editor.call('picker:pajamadot:assetgen', {
-                    targetFolder: asset.get('id')
-                });
-            }
-        })
-    ];
-}
-
-/**
- * Create AI Generate submenu based on asset type
- */
-function createAISubmenu(asset: any): Menu | null {
-    const type = asset.get('type');
-    const isSource = asset.get('source');
-
-    let items: MenuItem[] = [];
-
-    if (type === 'texture') {
-        items = getTextureMenuItems(asset);
-    } else if (type === 'material') {
-        items = getMaterialMenuItems(asset);
-    } else if (type === 'model' || type === 'container') {
-        items = getModelMenuItems(asset);
-    } else if (isSource && ['png', 'jpg', 'jpeg', 'webp'].some(ext =>
-        asset.get('name')?.toLowerCase().endsWith(`.${ext}`)
-    )) {
-        items = getImageMenuItems(asset);
-    } else if (type === 'folder') {
-        items = getFolderMenuItems(asset);
-    }
-
-    if (items.length === 0) {
-        return null;
-    }
-
-    const menu = new Menu();
-    items.forEach(item => menu.append(item));
-    return menu;
-}
-
-/**
- * Initialize asset browser context menu integration
+ * Initialize context menu integration for right-click on assets
+ * Note: PlayCanvas's createCustomContextMenu supports nested 'items' arrays
+ * where each item is a plain object with { text, icon, onSelect, onIsVisible, items? }
  */
 function initContextMenuIntegration(): void {
-    const root = editor.call('layout.root');
-    if (!root) {
-        console.warn('[PajamaDot] Layout root not available for context menu');
-        return;
-    }
-
     // Check if assets:contextmenu:add method exists
     try {
-        // Test if the method exists by checking layout methods
         if (typeof editor.call !== 'function') {
             console.warn('[PajamaDot] Editor call method not available');
             return;
@@ -235,54 +22,122 @@ function initContextMenuIntegration(): void {
         return;
     }
 
-    // Track current asset for submenu
-    let currentAsset: any = null;
-    let aiSubmenu: Menu | null = null;
-
-    // Add AI Generate item to context menu - wrapped in try-catch for compatibility
-    // Note: PlayCanvas Editor's context menu API doesn't support dynamic 'items' function,
-    // so we use a simpler approach with just onSelect
+    // Add PajamaDot submenu to context menu with nested items
     try {
         editor.call('assets:contextmenu:add', {
-            text: 'AI Generate',
+            text: '✨ PajamaDot',
             icon: 'E195', // Magic wand icon
             onIsVisible: (asset: any) => {
                 // Check if we have a valid token
                 const hasToken = editor.call('pajamadot:hasToken');
                 if (!hasToken) return false;
 
-                // Check if this asset type supports AI generation
+                // Always show for assets that support AI generation
                 const type = asset.get('type');
                 const isSource = asset.get('source');
                 const name = asset.get('name') || '';
 
-                const supportedTypes = ['texture', 'material', 'model', 'container', 'folder'];
+                // Check for image source files
                 const isImage = isSource && ['png', 'jpg', 'jpeg', 'webp'].some(ext =>
                     name.toLowerCase().endsWith(`.${ext}`)
                 );
 
+                // Check for supported asset types
+                const supportedTypes = ['texture', 'material', 'model', 'container', 'folder', 'storycharacter', 'storylocation', 'storyitem'];
+
                 return supportedTypes.includes(type) || isImage;
             },
-            onSelect: (asset: any) => {
-                // Show appropriate generation panel or modal based on asset type
-                const type = asset.get('type');
-
-                if (type === 'texture' || type === 'material') {
-                    // Open texture generation with context
-                    editor.call('pajamadot:panel:texture:show');
-                } else if (type === 'model' || type === 'container') {
-                    // Open mesh panel
-                    editor.call('pajamadot:panel:mesh:show');
-                } else {
-                    // Open full modal
-                    editor.call('picker:pajamadot:assetgen');
+            // Nested items for submenu
+            items: [
+                // --- AI Generation Section ---
+                {
+                    text: 'Generate Texture',
+                    icon: 'E159',
+                    onSelect: () => {
+                        editor.call('pajamadot:panel:texture:show');
+                    }
+                },
+                {
+                    text: 'Generate 3D Model',
+                    icon: 'E207',
+                    onSelect: () => {
+                        editor.call('pajamadot:panel:mesh:show');
+                    }
+                },
+                {
+                    text: 'Generate Image',
+                    icon: 'E159',
+                    onSelect: () => {
+                        editor.call('picker:pajamadot:assetgen', 'image');
+                    }
+                },
+                // --- Separator ---
+                {
+                    text: '─────────────',
+                    onIsVisible: () => true,
+                    onSelect: () => {}
+                },
+                // --- Story Assets Section ---
+                {
+                    text: 'Create Character',
+                    icon: 'E192',
+                    onSelect: () => {
+                        editor.call('assets:create:storycharacter');
+                    }
+                },
+                {
+                    text: 'Create Background',
+                    icon: 'E201',
+                    onSelect: () => {
+                        editor.call('assets:create:storylocation');
+                    }
+                },
+                {
+                    text: 'Create Item',
+                    icon: 'E209',
+                    onSelect: () => {
+                        editor.call('assets:create:storyitem');
+                    }
+                },
+                // --- Separator ---
+                {
+                    text: '─────────────',
+                    onIsVisible: () => true,
+                    onSelect: () => {}
+                },
+                // --- Asset Generator ---
+                {
+                    text: 'Asset Generator...',
+                    icon: 'E195',
+                    onSelect: () => {
+                        editor.call('picker:pajamadot:assetgen');
+                    }
+                },
+                {
+                    text: 'Generation History',
+                    icon: 'E164',
+                    onSelect: () => {
+                        editor.call('picker:pajamadot:assetgen', 'history');
+                    }
+                },
+                // --- Separator ---
+                {
+                    text: '─────────────',
+                    onIsVisible: () => true,
+                    onSelect: () => {}
+                },
+                // --- API Settings ---
+                {
+                    text: 'API Settings...',
+                    icon: 'E136',
+                    onSelect: () => {
+                        editor.call('picker:pajamadot:token');
+                    }
                 }
-            }
-            // Note: 'items' property removed as it causes "data.items.forEach is not a function" error
-            // Submenus can be implemented using the onSelect handler + custom menu popup
+            ]
         });
 
-        console.log('[PajamaDot] Asset context menu AI options registered');
+        console.log('[PajamaDot] Asset context menu registered');
     } catch (e) {
         console.warn('[PajamaDot] Failed to register asset context menu:', e);
     }
@@ -293,62 +148,74 @@ function initContextMenuIntegration(): void {
  */
 function initCreateMenuIntegration(): void {
     try {
-        // Add AI Generate submenu to the + button / create menu
+        // Add PajamaDot submenu to the + button / create menu
         editor.call('assets:contextmenu:addcreate', {
-            text: 'AI Generate',
+            text: '✨ PajamaDot',
             icon: 'E195', // Magic wand icon
             onIsVisible: () => {
                 return editor.call('pajamadot:hasToken') && editor.call('permissions:write');
             },
             items: [
+                // --- AI Generation ---
                 {
                     text: 'Generate Texture',
-                    icon: 'E159', // Texture icon
+                    icon: 'E159',
                     onSelect: () => {
                         editor.call('pajamadot:panel:texture:show');
                     }
                 },
                 {
                     text: 'Generate 3D Model',
-                    icon: 'E207', // 3D cube icon
+                    icon: 'E207',
                     onSelect: () => {
                         editor.call('pajamadot:panel:mesh:show');
                     }
                 },
                 {
                     text: 'Generate Image',
-                    icon: 'E159', // Image icon
+                    icon: 'E159',
                     onSelect: () => {
                         editor.call('picker:pajamadot:assetgen', 'image');
                     }
                 },
+                // --- Separator ---
                 {
                     text: '─────────────',
                     onIsVisible: () => true,
                     onSelect: () => {}
                 },
+                // --- Story Assets ---
                 {
-                    text: 'Generate Character',
-                    icon: 'E192', // Person icon
+                    text: 'Create Character',
+                    icon: 'E192',
                     onSelect: () => {
                         editor.call('assets:create:storycharacter');
                     }
                 },
                 {
-                    text: 'Generate Background',
-                    icon: 'E201', // Landscape icon
+                    text: 'Create Background',
+                    icon: 'E201',
                     onSelect: () => {
                         editor.call('assets:create:storylocation');
                     }
                 },
                 {
+                    text: 'Create Item',
+                    icon: 'E209',
+                    onSelect: () => {
+                        editor.call('assets:create:storyitem');
+                    }
+                },
+                // --- Separator ---
+                {
                     text: '─────────────',
                     onIsVisible: () => true,
                     onSelect: () => {}
                 },
+                // --- Asset Generator ---
                 {
                     text: 'Asset Generator...',
-                    icon: 'E195', // Magic wand
+                    icon: 'E195',
                     onSelect: () => {
                         editor.call('picker:pajamadot:assetgen');
                     }
@@ -356,7 +223,7 @@ function initCreateMenuIntegration(): void {
             ]
         });
 
-        console.log('[PajamaDot] Create menu AI options registered');
+        console.log('[PajamaDot] Create menu registered');
     } catch (e) {
         console.warn('[PajamaDot] Failed to register create menu:', e);
     }
@@ -396,20 +263,20 @@ function registerQuickActions(): void {
             // Import upscale client
             const { generationClient } = await import('../generation/generation-client');
 
-            // Call upscale API (using the upscale_image endpoint)
-            const result = await generationClient.upscaleImage(url, scale);
+            // Call upscale API
+            const result = await generationClient.upscaleImage({
+                image_url: url,
+                scale_factor: scale
+            });
 
-            if (result.success && result.imageUrl) {
-                // Import the upscaled image as a new asset
-                const { assetImporter } = await import('../generation/asset-importer');
-                const folder = asset.get('parent') || editor.call('assets:panel:currentFolder');
-                const name = `${asset.get('name')}_${scale}x`;
-
-                await assetImporter.importTextureFromUrl(result.imageUrl, name, folder);
-                editor.call('status:success', `Upscaled to ${scale}x!`);
-                editor.call('aigc:credits:refresh');
-            } else {
-                editor.call('status:error', result.error || 'Upscale failed');
+            if (result.url) {
+                editor.call('status:log', `Upscale complete! Downloading...`);
+                // Import the upscaled image
+                await editor.call('assets:importUrl', result.url, {
+                    type: 'texture',
+                    name: `${asset.get('name')}_${scale}x`,
+                    folder: asset.get('path.folder')
+                });
             }
         } catch (error) {
             console.error('[PajamaDot] Upscale error:', error);
@@ -417,7 +284,7 @@ function registerQuickActions(): void {
         }
     });
 
-    // PBR set generation quick action
+    // PBR generation quick action
     safeMethod('pajamadot:quick:pbr', async (assetId: number) => {
         try {
             editor.call('status:log', 'Generating PBR texture set...');
@@ -428,43 +295,15 @@ function registerQuickActions(): void {
                 return;
             }
 
-            // Get the texture URL
+            // Get asset URL
             const url = await editor.call('assets:get:url', assetId);
             if (!url) {
                 editor.call('status:error', 'Could not get asset URL');
                 return;
             }
 
-            // Import texture client
-            const { textureClient } = await import('../generation/texture-client');
-            const { assetImporter } = await import('../generation/asset-importer');
-
-            // Generate PBR maps
-            const result = await textureClient.generatePBRMaps(url);
-
-            if (result.success) {
-                const folder = asset.get('parent') || editor.call('assets:panel:currentFolder');
-                const baseName = asset.get('name').replace(/\.(png|jpg|jpeg|webp)$/i, '');
-
-                // Import each map
-                if (result.diffuseUrl) {
-                    await assetImporter.importTextureFromUrl(result.diffuseUrl, `${baseName}_diffuse`, folder);
-                }
-                if (result.normalUrl) {
-                    await assetImporter.importTextureFromUrl(result.normalUrl, `${baseName}_normal`, folder);
-                }
-                if (result.roughnessUrl) {
-                    await assetImporter.importTextureFromUrl(result.roughnessUrl, `${baseName}_roughness`, folder);
-                }
-                if (result.aoUrl) {
-                    await assetImporter.importTextureFromUrl(result.aoUrl, `${baseName}_ao`, folder);
-                }
-
-                editor.call('status:success', 'PBR set generated!');
-                editor.call('aigc:credits:refresh');
-            } else {
-                editor.call('status:error', result.error || 'PBR generation failed');
-            }
+            // TODO: Implement PBR generation via generation client
+            editor.call('status:log', 'PBR generation coming soon!');
         } catch (error) {
             console.error('[PajamaDot] PBR generation error:', error);
             editor.call('status:error', `PBR generation failed: ${error}`);
@@ -491,129 +330,44 @@ function registerQuickActions(): void {
 
             // Import generation client
             const { generationClient } = await import('../generation/generation-client');
-            const { assetImporter } = await import('../generation/asset-importer');
 
-            // Call background removal
-            const result = await generationClient.removeBackground(url);
+            // Call remove background API
+            const result = await generationClient.removeBackground({
+                image_url: url
+            });
 
-            if (result.success && result.imageUrl) {
-                const folder = asset.get('parent') || editor.call('assets:panel:currentFolder');
-                const name = `${asset.get('name')}_nobg`;
-
-                await assetImporter.importTextureFromUrl(result.imageUrl, name, folder);
-                editor.call('status:success', 'Background removed!');
-                editor.call('aigc:credits:refresh');
-            } else {
-                editor.call('status:error', result.error || 'Background removal failed');
+            if (result.url) {
+                editor.call('status:log', 'Background removed! Importing...');
+                // Import the result
+                await editor.call('assets:importUrl', result.url, {
+                    type: 'texture',
+                    name: `${asset.get('name')}_nobg`,
+                    folder: asset.get('path.folder')
+                });
             }
         } catch (error) {
-            console.error('[PajamaDot] Background removal error:', error);
-            editor.call('status:error', `Background removal failed: ${error}`);
-        }
-    });
-
-    // Generate variant quick action
-    safeMethod('pajamadot:quick:variant', async (assetId: number) => {
-        try {
-            editor.call('status:log', 'Generating variant...');
-
-            const asset = editor.call('assets:get', assetId);
-            if (!asset) {
-                editor.call('status:error', 'Asset not found');
-                return;
-            }
-
-            // Get original prompt if available
-            const prompt = asset.get('meta.aigc.prompt') || asset.get('name');
-
-            // Open texture panel with pre-filled prompt
-            editor.call('pajamadot:panel:texture:show', { prompt });
-        } catch (error) {
-            console.error('[PajamaDot] Variant generation error:', error);
-            editor.call('status:error', `Variant generation failed: ${error}`);
-        }
-    });
-
-    // Material textures generation
-    safeMethod('pajamadot:generate:material-textures', async (options: {
-        materialId: number;
-        prompt?: string;
-        slots: string[];
-    }) => {
-        try {
-            editor.call('status:log', 'Generating material textures...');
-
-            const material = editor.call('assets:get', options.materialId);
-            if (!material) {
-                editor.call('status:error', 'Material not found');
-                return;
-            }
-
-            const { textureClient } = await import('../generation/texture-client');
-            const { assetImporter } = await import('../generation/asset-importer');
-
-            const folder = material.get('parent') || editor.call('assets:panel:currentFolder');
-            const baseName = material.get('name');
-            const prompt = options.prompt || baseName;
-
-            for (const slot of options.slots) {
-                editor.call('status:log', `Generating ${slot} texture...`);
-
-                let result;
-                if (slot === 'normal') {
-                    result = await textureClient.generateTexture(`${prompt} normal map, blue-purple tones`, { seamless: true });
-                } else if (slot === 'roughness') {
-                    result = await textureClient.generateTexture(`${prompt} roughness map, grayscale`, { seamless: true });
-                } else if (slot === 'ao') {
-                    result = await textureClient.generateTexture(`${prompt} ambient occlusion map, grayscale`, { seamless: true });
-                } else {
-                    result = await textureClient.generateTexture(prompt, { seamless: true });
-                }
-
-                if (result.success && result.textureUrl) {
-                    await assetImporter.importTextureFromUrl(result.textureUrl, `${baseName}_${slot}`, folder);
-                }
-            }
-
-            editor.call('status:success', 'Material textures generated!');
-            editor.call('aigc:credits:refresh');
-        } catch (error) {
-            console.error('[PajamaDot] Material texture generation error:', error);
-            editor.call('status:error', `Generation failed: ${error}`);
-        }
-    });
-
-    // Model texture generation
-    safeMethod('pajamadot:generate:model-texture', async (options: {
-        modelId: number;
-        prompt?: string;
-    }) => {
-        try {
-            const model = editor.call('assets:get', options.modelId);
-            if (!model) {
-                editor.call('status:error', 'Model not found');
-                return;
-            }
-
-            const prompt = options.prompt || model.get('name');
-
-            // Open texture panel with context
-            editor.call('pajamadot:panel:texture:show', { prompt: `texture for 3D model: ${prompt}` });
-        } catch (error) {
-            console.error('[PajamaDot] Model texture generation error:', error);
-            editor.call('status:error', `Generation failed: ${error}`);
+            console.error('[PajamaDot] Remove background error:', error);
+            editor.call('status:error', `Remove background failed: ${error}`);
         }
     });
 
     console.log('[PajamaDot] Quick actions registered');
 }
 
+/**
+ * Initialize all asset browser integrations
+ */
+function initAssetBrowserIntegration(): void {
+    initContextMenuIntegration();
+    initCreateMenuIntegration();
+    registerQuickActions();
+}
+
 // Initialize on editor load
 editor.once('load', () => {
-    // Delay to ensure other systems are ready
     setTimeout(() => {
-        initContextMenuIntegration();
-        initCreateMenuIntegration();
-        registerQuickActions();
-    }, 600);
+        initAssetBrowserIntegration();
+    }, 500);
 });
+
+export { initAssetBrowserIntegration };

@@ -162,9 +162,6 @@ class AssetGenerationModal extends Container {
         this._createMeshPanel(contentContainer);
         this._createVideoPanel(contentContainer);
 
-        // Show initial tab
-        this._switchTab('texture');
-
         // Status and generate button
         const actionsContainer = new Container({
             flex: true,
@@ -206,6 +203,9 @@ class AssetGenerationModal extends Container {
         });
         closeButton.on('click', () => this.close());
         buttonRow.append(closeButton);
+
+        // Show initial tab (after _generateButton is created)
+        this._switchTab('texture');
 
         // Result preview
         this._resultPreview = new Container({
@@ -556,9 +556,11 @@ class AssetGenerationModal extends Container {
             panel.hidden = type !== tab;
         });
 
-        // Update generate button state for video tab
-        this._generateButton.enabled = tab !== 'video';
-        this._generateButton.text = tab === 'video' ? 'Coming Soon' : 'Generate';
+        // Update generate button state for video tab (null check for early calls)
+        if (this._generateButton) {
+            this._generateButton.enabled = tab !== 'video';
+            this._generateButton.text = tab === 'video' ? 'Coming Soon' : 'Generate';
+        }
     }
 
     private async _loadCredits() {

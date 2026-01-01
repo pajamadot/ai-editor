@@ -392,9 +392,11 @@ function toggleActiveJobsPanel(): void {
  */
 function initActiveJobsPanel(): void {
     // Add to AIGC panel area if available
+    // Note: layout.aigc and layout.right may not exist in all editor configurations
+    // This is optional - the modal-based generation still works without this panel
     const aigcPanel = editor.call('layout.aigc') || editor.call('layout.right');
     if (!aigcPanel) {
-        console.warn('[PajamaDot] Cannot find panel to attach active jobs');
+        // Silent skip - panel attachment is optional
         return;
     }
 
