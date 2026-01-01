@@ -140,8 +140,11 @@ class AssetGenerationModal extends Container {
         tabs.forEach(tab => {
             const button = new Button({
                 text: `${tab.icon} ${tab.label}`,
-                class: `pajamadot-tab ${tab.type === this._currentTab ? 'active' : ''}`
+                class: 'pajamadot-tab'
             });
+            if (tab.type === this._currentTab) {
+                button.class.add('active');
+            }
             button.on('click', () => this._switchTab(tab.type));
             tabsContainer.append(button);
             this._tabButtons.set(tab.type, button);
@@ -625,8 +628,9 @@ class AssetGenerationModal extends Container {
 
         this._history.forEach(item => {
             const historyItem = new Container({
-                class: `pajamadot-history-item ${item.status}`
+                class: 'pajamadot-history-item'
             });
+            historyItem.class.add(item.status);
             this._historyPanel.append(historyItem);
 
             // Thumbnail/preview
