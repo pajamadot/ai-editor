@@ -21,16 +21,9 @@ const TOKEN_PATTERN = /^sp_(live|test)_[A-Za-z0-9]+$/;
  */
 function safeLocalStorageSet(key: string, value: string): void {
     try {
-        // Try PlayCanvas editor method first
-        if (typeof editor !== 'undefined' && editor && typeof editor.call === 'function') {
-            try {
-                editor.call('localStorage:set', key, value);
-                return;
-            } catch (e) {
-                // Method not available, fall through to native localStorage
-            }
-        }
-        // Fallback to native localStorage
+        // Use native localStorage directly - the PlayCanvas editor.call('localStorage:set')
+        // JSON.stringifies values, but we need plain strings for compatibility with the
+        // settings panel which uses native localStorage.
         localStorage.setItem(key, value);
     } catch (e) {
         console.error('[PajamaDot] Failed to save to localStorage:', e);
@@ -39,16 +32,9 @@ function safeLocalStorageSet(key: string, value: string): void {
 
 function safeLocalStorageGet(key: string): string | null {
     try {
-        // Try PlayCanvas editor method first
-        if (typeof editor !== 'undefined' && editor && typeof editor.call === 'function') {
-            try {
-                const value = editor.call('localStorage:get', key);
-                if (value !== undefined) return value || null;
-            } catch (e) {
-                // Method not available, fall through to native localStorage
-            }
-        }
-        // Fallback to native localStorage
+        // Use native localStorage directly - the PlayCanvas editor.call('localStorage:get')
+        // tries to JSON.parse the value, which fails for plain string tokens like 'sp_live_...'
+        // The settings panel uses native localStorage, so we should too for consistency.
         return localStorage.getItem(key);
     } catch (e) {
         console.error('[PajamaDot] Failed to read from localStorage:', e);

@@ -123,30 +123,16 @@ async function sendLocationData(assetId: number) {
 }
 
 function sendLocationTokenToWindow() {
-    // Use localStorage directly for reliability, matching the key used in settings-panels/pajamadot.ts
+    // Use native localStorage directly - PlayCanvas editor.call('localStorage:get') tries to
+    // JSON.parse values, which fails for plain string tokens. The settings panel uses native
+    // localStorage, so we do the same for consistency.
     let token = '';
     let baseUrl = 'https://generation.pajamadot.com';
 
     try {
-        // Try editor method first
-        if (typeof editor !== 'undefined' && editor && typeof editor.call === 'function') {
-            try {
-                const t = editor.call('localStorage:get', 'pajamadot_api_token');
-                if (t) token = t;
-                const b = editor.call('localStorage:get', 'pajamadot_api_base_url');
-                if (b) baseUrl = b;
-            } catch (e) {
-                // Fallback to native localStorage
-            }
-        }
-        // Fallback to native localStorage if editor method didn't work
-        if (!token) {
-            token = localStorage.getItem('pajamadot_api_token') || '';
-        }
-        if (baseUrl === 'https://generation.pajamadot.com') {
-            const b = localStorage.getItem('pajamadot_api_base_url');
-            if (b) baseUrl = b;
-        }
+        token = localStorage.getItem('pajamadot_api_token') || '';
+        const b = localStorage.getItem('pajamadot_api_base_url');
+        if (b) baseUrl = b;
     } catch (e) {
         console.error('[PajamaDot] Failed to get token:', e);
     }
