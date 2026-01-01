@@ -128,7 +128,8 @@ class MeshGenerationPanel extends Container {
         this._panel.content.append(styleRow);
 
         // Options row: Simplify + Texture Resolution
-        const optionsRow = new Container({ flex: true, class: 'aigc-row aigc-options' });
+        const optionsRow = new Container({ flex: true, class: 'aigc-row' });
+        optionsRow.class.add('aigc-options');
 
         const simplifyContainer = new Container({ flex: true });
         simplifyContainer.append(new Label({ text: 'Mesh Detail:' }));
@@ -168,12 +169,14 @@ class MeshGenerationPanel extends Container {
         this._panel.content.append(costRow);
 
         // Generate button row
-        const btnRow = new Container({ flex: true, class: 'aigc-row aigc-btn-row' });
+        const btnRow = new Container({ flex: true, class: 'aigc-row' });
+        btnRow.class.add('aigc-btn-row');
 
         this._generateBtn = new Button({
             text: 'Generate 3D Mesh',
-            class: 'pajamadot-btn-primary aigc-generate-btn'
+            class: 'pajamadot-btn-primary'
         });
+        this._generateBtn.class.add('aigc-generate-btn');
         this._generateBtn.on('click', () => this._onGenerate());
         btnRow.append(this._generateBtn);
 
@@ -198,8 +201,9 @@ class MeshGenerationPanel extends Container {
         // Preview container
         this._previewContainer = new Container({
             flex: true,
-            class: 'aigc-preview-container aigc-mesh-preview'
+            class: 'aigc-preview-container'
         });
+        this._previewContainer.class.add('aigc-mesh-preview');
         this._previewContainer.hidden = true;
         this._panel.content.append(this._previewContainer);
 

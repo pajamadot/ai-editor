@@ -243,8 +243,9 @@ class HistoryDetailPanel extends Container {
             const importBtn = new Button({
                 text: 'Import to Project',
                 icon: 'E194',
-                class: 'history-detail-btn primary'
+                class: 'history-detail-btn'
             });
+            importBtn.class.add('primary');
             importBtn.on('click', () => this._importAsset());
             actions.append(importBtn);
 

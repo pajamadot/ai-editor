@@ -75,7 +75,8 @@ class TextureGenerationPanel extends Container {
         this._panel.content.append(promptRow);
 
         // Options row 1: Seamless + Resolution
-        const optionsRow1 = new Container({ flex: true, class: 'aigc-row aigc-options' });
+        const optionsRow1 = new Container({ flex: true, class: 'aigc-row' });
+        optionsRow1.class.add('aigc-options');
 
         const seamlessContainer = new Container({ flex: true });
         seamlessContainer.append(new Label({ text: 'Seamless:' }));
@@ -99,7 +100,8 @@ class TextureGenerationPanel extends Container {
         this._panel.content.append(optionsRow1);
 
         // Options row 2: Style + Type
-        const optionsRow2 = new Container({ flex: true, class: 'aigc-row aigc-options' });
+        const optionsRow2 = new Container({ flex: true, class: 'aigc-row' });
+        optionsRow2.class.add('aigc-options');
 
         const styleContainer = new Container({ flex: true });
         styleContainer.append(new Label({ text: 'Style:' }));
@@ -134,12 +136,14 @@ class TextureGenerationPanel extends Container {
         this._panel.content.append(optionsRow2);
 
         // Generate button row
-        const btnRow = new Container({ flex: true, class: 'aigc-row aigc-btn-row' });
+        const btnRow = new Container({ flex: true, class: 'aigc-row' });
+        btnRow.class.add('aigc-btn-row');
 
         this._generateBtn = new Button({
             text: 'Generate Texture (8 credits)',
-            class: 'pajamadot-btn-primary aigc-generate-btn'
+            class: 'pajamadot-btn-primary'
         });
+        this._generateBtn.class.add('aigc-generate-btn');
         this._generateBtn.on('click', () => this._onGenerate());
         btnRow.append(this._generateBtn);
 

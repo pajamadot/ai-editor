@@ -191,8 +191,9 @@ class AssetGenerationModal extends Container {
 
         this._generateButton = new Button({
             text: 'Generate',
-            class: 'pajamadot-btn-primary pajamadot-generate-btn'
+            class: 'pajamadot-btn-primary'
         });
+        this._generateButton.class.add('pajamadot-generate-btn');
         this._generateButton.on('click', () => this._handleGenerate());
         buttonRow.append(this._generateButton);
 

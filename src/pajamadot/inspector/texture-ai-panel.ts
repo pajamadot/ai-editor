@@ -78,8 +78,9 @@ export class TextureAIPanel extends Container {
         this._generateBtn = new Button({
             text: 'Generate Variant (8cr)',
             icon: 'E195',
-            class: 'texture-ai-btn primary'
+            class: 'texture-ai-btn'
         });
+        this._generateBtn.class.add('primary');
         this._generateBtn.on('click', () => this._onGenerateVariant());
         actionsRow1.append(this._generateBtn);
 

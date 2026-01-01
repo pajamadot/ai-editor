@@ -152,8 +152,9 @@ export class MaterialAIPanel extends Container {
         this._generateAllBtn = new Button({
             text: 'Generate All (32cr)',
             icon: 'E207',
-            class: 'material-ai-btn primary'
+            class: 'material-ai-btn'
         });
+        this._generateAllBtn.class.add('primary');
         this._generateAllBtn.on('click', () => this._onGenerateAll());
         actionsContainer.append(this._generateAllBtn);
 

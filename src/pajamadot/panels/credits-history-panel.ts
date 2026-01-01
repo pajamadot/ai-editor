@@ -114,7 +114,8 @@ class TransactionItem extends Container {
         info.append(topRow);
 
         // Bottom row: time + status + media type
-        const bottomRow = new Container({ class: 'transaction-row bottom' });
+        const bottomRow = new Container({ class: 'transaction-row' });
+        bottomRow.class.add('bottom');
 
         const timeLabel = new Label({
             text: formatDate(tx.createdAt),

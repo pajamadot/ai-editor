@@ -101,8 +101,9 @@ export class ModelAIPanel extends Container {
         this._generateBtn = new Button({
             text: 'Generate Texture (15cr)',
             icon: 'E159',
-            class: 'model-ai-btn primary'
+            class: 'model-ai-btn'
         });
+        this._generateBtn.class.add('primary');
         this._generateBtn.on('click', () => this._onGenerateTexture());
         actionsContainer.append(this._generateBtn);
 
