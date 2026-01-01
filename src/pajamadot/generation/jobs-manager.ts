@@ -206,29 +206,15 @@ class JobsManager {
 
     /**
      * Check for any active jobs on startup
+     * NOTE: This is skipped in PlayCanvas integration since we don't have a
+     * corresponding project in the PajamaDot backend. Jobs are only tracked
+     * for the current session when added via addJob().
      */
     private async _checkActiveJobs(): Promise<void> {
-        try {
-            const hasToken = editor.call('pajamadot:hasToken');
-            if (!hasToken) return;
-
-            const jobs = await generationClient.getActiveJobs();
-
-            for (const job of jobs) {
-                if (!this._activeJobs.has(job.requestId)) {
-                    this._activeJobs.set(job.requestId, job);
-                    this._emit({ type: 'job:added', job });
-                }
-            }
-
-            if (this._activeJobs.size > 0 && !this._pollInterval) {
-                this._startPolling();
-            }
-
-            console.log(`[JobsManager] Found ${jobs.length} active jobs`);
-        } catch (e) {
-            console.warn('[JobsManager] Failed to check active jobs:', e);
-        }
+        // Skip fetching active jobs from server - PlayCanvas doesn't have a
+        // corresponding project in the PajamaDot backend, so the API would fail.
+        // Instead, we only track jobs created during the current session.
+        console.log('[JobsManager] Skipping server job check (no project context)');
     }
 
     /**
