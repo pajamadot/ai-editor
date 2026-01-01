@@ -46,7 +46,4 @@ import './generation';
 // Inspector integration (must be last - overrides assets:edit after everything is loaded)
 import './inspector/inspector-integration';
 
-// Settings
-// import './settings/pajamadot-settings';
-
 console.log('[PajamaDot] Story extensions loaded');

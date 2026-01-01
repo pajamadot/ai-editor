@@ -232,20 +232,125 @@ class TokenSettingsPicker extends Container {
     }
 }
 
-// Register editor method
-editor.once('load', () => {
+/**
+ * Add token picker styles
+ */
+function addTokenPickerStyles(): void {
+    const styleId = 'pajamadot-token-picker-styles';
+    if (document.getElementById(styleId)) return;
+
+    const styles = document.createElement('style');
+    styles.id = styleId;
+    styles.textContent = `
+        .pajamadot-picker-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .pajamadot-token-picker {
+            background: #2a2a2a;
+            border-radius: 8px;
+            min-width: 400px;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .pajamadot-token-picker .pcui-panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px 8px 0 0;
+        }
+        .pajamadot-token-info {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        .pajamadot-token-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .pajamadot-token-input {
+            flex: 1;
+        }
+        .pajamadot-token-status {
+            margin-bottom: 8px;
+            font-size: 12px;
+            min-height: 18px;
+        }
+        .pajamadot-token-status.success {
+            color: #4caf50;
+        }
+        .pajamadot-token-status.error {
+            color: #f44336;
+        }
+        .pajamadot-token-status.pending {
+            color: #ff9800;
+        }
+        .pajamadot-token-balance {
+            color: #4a90d9;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        .pajamadot-token-balance.error {
+            color: #f44336;
+        }
+        .pajamadot-token-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+        .pajamadot-token-link {
+            color: #4a90d9;
+            font-size: 12px;
+            margin-top: 12px;
+            text-decoration: underline;
+        }
+        .pajamadot-token-link:hover {
+            color: #6ba8e5;
+        }
+        .pajamadot-btn-primary {
+            background: #4a90d9;
+            color: white;
+            border: none;
+        }
+        .pajamadot-btn-primary:hover {
+            background: #5a9fe9;
+        }
+        .pajamadot-btn-secondary {
+            background: #444;
+            color: white;
+            border: none;
+        }
+        .pajamadot-btn-secondary:hover {
+            background: #555;
+        }
+    `;
+    document.head.appendChild(styles);
+}
+
+// Register editor methods
+function registerEditorMethods() {
+    addTokenPickerStyles();
+
     editor.method('picker:pajamadot:token', () => {
         const picker = new TokenSettingsPicker();
         picker.show();
         return picker;
     });
 
-    // Add method to check if token is configured
     editor.method('pajamadot:hasToken', () => {
         return PajamaDotTokenManager.hasToken();
     });
 
-    // Add method to get current balance
     editor.method('pajamadot:getCredits', async () => {
         if (!PajamaDotTokenManager.hasToken()) {
             return null;
@@ -256,8 +361,15 @@ editor.once('load', () => {
             return null;
         }
     });
+}
 
-    console.log('[PajamaDot] Token settings registered');
-});
+// Safely register when editor is available
+if (typeof editor !== 'undefined' && editor) {
+    try {
+        editor.once('load', registerEditorMethods);
+    } catch (err) {
+        console.warn('[PajamaDot] Could not register editor load listener:', err);
+    }
+}
 
 export { TokenSettingsPicker };

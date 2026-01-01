@@ -3,7 +3,7 @@
  * Adds AI generation tools to the PlayCanvas Editor toolbar and menus
  */
 
-import { Button, Container, Menu, MenuItem, Label } from '@playcanvas/pcui';
+import { Button, Menu, MenuItem, Label } from '@playcanvas/pcui';
 
 import { LegacyTooltip } from '@/common/ui/tooltip';
 
@@ -122,7 +122,7 @@ class AIGCMenu {
             text: 'API Settings...',
             icon: 'E136', // Settings gear icon
             onSelect: () => {
-                editor.call('pajamadot:settings:show');
+                editor.call('picker:pajamadot:token');
                 this._menu.open = false;
             }
         });
@@ -213,34 +213,36 @@ function initAIGCMenu(): void {
         aigcMenu?.refreshCredits();
     });
 
-    // Add toolbar button
+    // Add toolbar button at the bottom (before Discord)
     const toolbar = editor.call('layout.toolbar');
     if (toolbar) {
-        // Create AIGC button container
-        const aigcBtnContainer = new Container({
-            class: 'toolbar-aigc-container'
-        });
-
+        // Create button following Discord pattern
         const aigcBtn = new Button({
-            class: 'toolbar-aigc-btn',
-            icon: 'E195', // Magic wand / sparkle icon
-            text: ''
+            class: ['pc-icon', 'aigc', 'bottom'],
+            icon: 'E195' // Magic wand / sparkle icon
         });
 
-        aigcBtn.on('click', (e: MouseEvent) => {
+        aigcBtn.on('click', () => {
             aigcMenu?.toggle(aigcBtn.dom);
         });
 
-        aigcBtnContainer.append(aigcBtn);
-        toolbar.append(aigcBtnContainer);
+        toolbar.append(aigcBtn);
 
-        // Add tooltip
+        // Add tooltip (align left like other bottom buttons)
         LegacyTooltip.attach({
             target: aigcBtn.dom,
-            text: 'AI Generation Tools',
-            align: 'right',
+            text: 'PajamaDot AI Tools',
+            align: 'left',
             root: root
         });
+
+        // Move before Discord button
+        setTimeout(() => {
+            const discordBtn = toolbar.dom.querySelector('.discord');
+            if (discordBtn) {
+                toolbar.dom.insertBefore(aigcBtn.dom, discordBtn);
+            }
+        }, 50);
     }
 
     // Add styles
@@ -259,22 +261,11 @@ function addAIGCMenuStyles(): void {
     const styles = document.createElement('style');
     styles.id = styleId;
     styles.textContent = `
-        .toolbar-aigc-container {
-            margin-left: 4px;
+        /* AIGC toolbar button - purple accent on hover */
+        #layout-toolbar .aigc.pcui-button:hover .pcui-icon {
+            color: #a855f7;
         }
-        .toolbar-aigc-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 4px;
-            width: 32px;
-            height: 32px;
-        }
-        .toolbar-aigc-btn:hover {
-            background: linear-gradient(135deg, #7b8ef5 0%, #8b5cb5 100%);
-        }
-        .toolbar-aigc-btn .pcui-icon {
-            color: white;
-        }
+        /* Menu credits header */
         .aigc-credits-item {
             background: rgba(74, 144, 217, 0.1);
             border-bottom: 1px solid rgba(74, 144, 217, 0.2);

@@ -3,6 +3,8 @@
  * AIGC generation clients and utilities for PlayCanvas Editor
  */
 
+console.log('[PajamaDot] Generation module initializing...');
+
 // Types
 export * from './types';
 
@@ -18,6 +20,7 @@ export * from './mesh-client';
 export * from './asset-importer';
 
 // Token settings picker (registers editor methods)
+// Has internal checks for editor availability
 import './token-settings';
 
-console.log('[PajamaDot] Generation module loaded');
+console.log('[PajamaDot] Generation module loaded successfully');

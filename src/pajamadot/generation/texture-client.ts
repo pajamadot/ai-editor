@@ -62,29 +62,8 @@ class TextureClient {
         });
     }
 
-    /**
-     * Generate a tileset/sprite sheet texture
-     * Cost: 15 credits
-     *
-     * @param request - Tileset generation parameters
-     * @returns Generated tileset result with image URL
-     */
-    async generateTileset(request: {
-        prompt: string;
-        tileSize?: 32 | 64 | 128;
-        gridSize?: '4x4' | '8x8' | '16x16';
-        style?: string;
-    }): Promise<TextureGenerationResult> {
-        return this.request<TextureGenerationResult>('/image/generate-tileset', {
-            method: 'POST',
-            body: JSON.stringify({
-                prompt: request.prompt,
-                tileSize: request.tileSize ?? 64,
-                gridSize: request.gridSize ?? '8x8',
-                style: request.style
-            })
-        });
-    }
+    // Tileset generation is currently disabled in the backend
+    // TODO: Re-enable when /image/generate-tileset endpoint is active
 
     /**
      * Generate PBR texture maps (diffuse, normal, roughness)

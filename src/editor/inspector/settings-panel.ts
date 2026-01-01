@@ -15,6 +15,10 @@ import { LightmappingSettingsPanel } from './settings-panels/lightmapping';
 import { LoadingScreenSettingsPanel } from './settings-panels/loading-screen';
 import { LocalizationSettingsPanel } from './settings-panels/localization';
 import { NetworkSettingsPanel } from './settings-panels/network';
+// BEGIN PAJAMADOT HACK
+import { PajamaDotSettingsPanel } from './settings-panels/pajamadot';
+console.log('[PajamaDot] PajamaDotSettingsPanel imported into SETTINGS_PANELS');
+// END PAJAMADOT HACK
 import { PhysicsSettingsPanel } from './settings-panels/physics';
 import { RenderingSettingsPanel } from './settings-panels/rendering';
 import { ScriptsSettingsPanel } from './settings-panels/scripts';
@@ -26,6 +30,9 @@ const CLASS_ROOT = 'settings';
 const SETTINGS_PANELS = [
     EngineSettingsPanel,
     EditorSettingsPanel,
+    // BEGIN PAJAMADOT HACK
+    PajamaDotSettingsPanel,
+    // END PAJAMADOT HACK
     AssetImportSettingsPanel,
     PhysicsSettingsPanel,
     RenderingSettingsPanel,
@@ -98,18 +105,22 @@ class SettingsPanel extends Container {
             editor.emit('scene:name', op.oi);
         });
 
-        SETTINGS_PANELS.forEach((panelType) => {
-            const panel = new panelType({
-                history: args.history,
-                assets: args.assets,
-                entities: args.entities,
-                settings: args.settings,
-                projectSettings: args.projectSettings,
-                userSettings: args.userSettings,
-                sceneSettings: args.sceneSettings,
-                sessionSettings: args.sessionSettings
-            });
-            this.append(panel);
+        SETTINGS_PANELS.forEach((panelType, index) => {
+            try {
+                const panel = new panelType({
+                    history: args.history,
+                    assets: args.assets,
+                    entities: args.entities,
+                    settings: args.settings,
+                    projectSettings: args.projectSettings,
+                    userSettings: args.userSettings,
+                    sceneSettings: args.sceneSettings,
+                    sessionSettings: args.sessionSettings
+                });
+                this.append(panel);
+            } catch (error) {
+                console.error(`[SettingsPanel] Failed to create panel at index ${index}:`, error);
+            }
         });
 
         this._linkSceneNameField();

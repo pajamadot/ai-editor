@@ -12,22 +12,13 @@ import type {
 } from './types';
 
 /**
- * Generation status for polling long-running jobs
- */
-interface GenerationStatus {
-    status: 'pending' | 'processing' | 'completed' | 'failed';
-    progress?: number;
-    result?: MeshGenerationResult;
-    error?: string;
-}
-
-/**
  * Mesh Generation Client
  * Generates 3D meshes from images using AI (fal.ai Trellis)
+ *
+ * Note: Mesh generation is synchronous - the API blocks until completion
+ * (typically 30-60 seconds). No polling needed.
  */
 class MeshClient {
-    private pollInterval = 2000; // 2 seconds
-    private maxPollAttempts = 60; // 2 minutes max
 
     /**
      * Make an authenticated API request
@@ -140,41 +131,8 @@ class MeshClient {
         };
     }
 
-    /**
-     * Poll for generation status (for async jobs)
-     *
-     * @param jobId - Generation job ID
-     * @param onProgress - Optional progress callback
-     * @returns Final generation result
-     */
-    async pollGenerationStatus(
-        jobId: string,
-        onProgress?: (status: GenerationStatus) => void
-    ): Promise<MeshGenerationResult> {
-        let attempts = 0;
-
-        while (attempts < this.maxPollAttempts) {
-            const status = await this.request<GenerationStatus>(
-                `/mesh/status/${jobId}`,
-                { method: 'GET' }
-            );
-
-            onProgress?.(status);
-
-            if (status.status === 'completed' && status.result) {
-                return status.result;
-            }
-
-            if (status.status === 'failed') {
-                throw new Error(status.error || 'Mesh generation failed');
-            }
-
-            await this.sleep(this.pollInterval);
-            attempts++;
-        }
-
-        throw new Error('Mesh generation timed out');
-    }
+    // Note: Polling is not needed - mesh generation is synchronous
+    // The /mesh/generate endpoint blocks until the mesh is ready (30-60 seconds)
 
     /**
      * Build optimized prompt for 3D mesh reference image
@@ -221,13 +179,6 @@ class MeshClient {
             throw new Error(`Failed to download texture: ${response.status}`);
         }
         return response.blob();
-    }
-
-    /**
-     * Sleep helper for polling
-     */
-    private sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 

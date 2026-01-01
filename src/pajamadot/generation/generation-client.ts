@@ -93,7 +93,7 @@ class GenerationClient {
      * Uses AI to create an optimized image generation prompt
      */
     async forgePrompt(request: ForgePromptRequest): Promise<ForgePromptResult> {
-        return this.request<ForgePromptResult>('/text/forge-prompt', {
+        return this.request<ForgePromptResult>('/text/forge', {
             method: 'POST',
             body: JSON.stringify({
                 type: request.type,

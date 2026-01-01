@@ -188,7 +188,7 @@ export async function saveYamlData(assetId: number): Promise<boolean> {
 
         // Use PlayCanvas asset update API
         await new Promise<void>((resolve, reject) => {
-            editor.call('assets:uploadFile', asset, blob, (err: Error | null) => {
+            editor.call('assets:uploadFile', { asset, file: blob }, (err: Error | null) => {
                 if (err) {
                     reject(err);
                 } else {
