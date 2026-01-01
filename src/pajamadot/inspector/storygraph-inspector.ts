@@ -46,8 +46,12 @@ class StoryGraphAssetInspector extends Container {
         // Build the UI
         this._buildDom();
 
-        // Register the inspector method
-        editor.method('picker:storygraph', this.openAsset.bind(this));
+        // Register the inspector method (safely to avoid duplicate errors)
+        try {
+            editor.method('picker:storygraph', this.openAsset.bind(this));
+        } catch (e) {
+            // Method already registered, ignore
+        }
     }
 
     private _buildDom() {

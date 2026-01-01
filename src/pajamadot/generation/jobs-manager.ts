@@ -267,35 +267,44 @@ const jobsManager = new JobsManager();
 
 // Register methods with editor
 const registerJobsManagerMethods = (): void => {
-    editor.method('pajamadot:jobs:add', (job: GenerationJob) => {
+    // Safe method registration to avoid duplicate registration errors
+    const safeMethod = (name: string, fn: (...args: any[]) => any) => {
+        try {
+            editor.method(name, fn);
+        } catch (e) {
+            // Method already registered, ignore
+        }
+    };
+
+    safeMethod('pajamadot:jobs:add', (job: GenerationJob) => {
         jobsManager.addJob(job);
     });
 
-    editor.method('pajamadot:jobs:remove', (requestId: string) => {
+    safeMethod('pajamadot:jobs:remove', (requestId: string) => {
         jobsManager.removeJob(requestId);
     });
 
-    editor.method('pajamadot:jobs:get', (requestId: string) => {
+    safeMethod('pajamadot:jobs:get', (requestId: string) => {
         return jobsManager.getJob(requestId);
     });
 
-    editor.method('pajamadot:jobs:getActive', () => {
+    safeMethod('pajamadot:jobs:getActive', () => {
         return jobsManager.getActiveJobs();
     });
 
-    editor.method('pajamadot:jobs:getCount', () => {
+    safeMethod('pajamadot:jobs:getCount', () => {
         return jobsManager.getActiveCount();
     });
 
-    editor.method('pajamadot:jobs:hasActive', () => {
+    safeMethod('pajamadot:jobs:hasActive', () => {
         return jobsManager.hasActiveJobs();
     });
 
-    editor.method('pajamadot:jobs:refresh', async () => {
+    safeMethod('pajamadot:jobs:refresh', async () => {
         await jobsManager.refresh();
     });
 
-    editor.method('pajamadot:jobs:subscribe', (listener: JobEventListener) => {
+    safeMethod('pajamadot:jobs:subscribe', (listener: JobEventListener) => {
         return jobsManager.on(listener);
     });
 

@@ -312,14 +312,21 @@ function hasCredits(amount: number): boolean {
 function initCreditsDisplay(): void {
     addCreditsDisplayStyles();
 
-    // Register methods
-    editor.method('pajamadot:credits:display', () => getCreditsDisplay());
-    editor.method('pajamadot:credits:refresh', refreshCreditsBalance);
-    editor.method('pajamadot:credits:hasEnough', hasCredits);
-    editor.method('pajamadot:credits:notify', (balance: CreditsBalance) => notifyCreditUpdate(balance));
+    // Register methods safely (avoid duplicate registration errors)
+    const safeRegister = (name: string, fn: (...args: any[]) => any) => {
+        try {
+            editor.method(name, fn);
+        } catch (e) {
+            // Method already registered, ignore
+        }
+    };
 
-    // Also expose via the older name for compatibility
-    editor.method('aigc:credits:refresh', refreshCreditsBalance);
+    safeRegister('pajamadot:credits:display', () => getCreditsDisplay());
+    safeRegister('pajamadot:credits:refresh', refreshCreditsBalance);
+    safeRegister('pajamadot:credits:hasEnough', hasCredits);
+    safeRegister('pajamadot:credits:notify', (balance: CreditsBalance) => notifyCreditUpdate(balance));
+
+    // Note: aigc:credits:refresh is registered in aigc-menu.ts, don't register it here
 
     // Add credits display to toolbar area
     const toolbar = editor.call('layout.toolbar') || document.querySelector('.pcui-panel-header');
