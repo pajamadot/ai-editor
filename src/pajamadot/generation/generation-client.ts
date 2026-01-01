@@ -12,6 +12,10 @@ import type {
     SceneGenerationRequest,
     ForgePromptRequest,
     EnhancePromptRequest,
+    TextureGenerationRequest,
+    TextureGenerationResult,
+    MeshGenerationRequest,
+    MeshGenerationResult,
     APIError
 } from './types';
 

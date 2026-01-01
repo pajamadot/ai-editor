@@ -67,3 +67,48 @@ export interface GenerationStatus {
     result?: GenerationResult;
     error?: string;
 }
+
+// Texture generation request
+export interface TextureGenerationRequest {
+    prompt: string;
+    seamless?: boolean;      // default: true (tileable)
+    resolution?: '512' | '1024' | '2048';  // default: 1024
+    style?: string;          // e.g., "photorealistic", "stylized", "painted"
+    type?: 'diffuse' | 'normal' | 'roughness' | 'all';  // default: diffuse
+}
+
+// Texture generation result
+export interface TextureGenerationResult {
+    success: boolean;
+    imageUrl?: string;
+    assetId?: string;
+    creditsCost: number;
+    creditsRemaining: number;
+    error?: string;
+}
+
+// Mesh generation request
+export interface MeshGenerationRequest {
+    imageUrl: string;
+    meshSimplify?: number;      // 0.0-1.0, default 0.9
+    textureResolution?: number; // default 1024
+}
+
+// Mesh generation result
+export interface MeshGenerationResult {
+    success: boolean;
+    mesh?: {
+        url: string;
+        format: 'glb';
+        fileSize?: number;
+    };
+    texture?: {
+        url: string;
+        format: string;
+        width?: number;
+        height?: number;
+    };
+    creditsCost: number;
+    creditsRemaining: number;
+    error?: string;
+}
