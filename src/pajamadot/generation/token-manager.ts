@@ -15,12 +15,52 @@ const DEFAULT_BASE_URL = 'https://generation.pajamadot.com';
  */
 const TOKEN_PATTERN = /^sp_(live|test)_[A-Za-z0-9]+$/;
 
+/**
+ * Safe localStorage wrapper with fallback
+ */
+function safeLocalStorageSet(key: string, value: string): void {
+    try {
+        // Try PlayCanvas editor method first
+        if (typeof editor !== 'undefined' && editor && typeof editor.call === 'function') {
+            try {
+                editor.call('localStorage:set', key, value);
+                return;
+            } catch (e) {
+                // Method not available, fall through to native localStorage
+            }
+        }
+        // Fallback to native localStorage
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.error('[PajamaDot] Failed to save to localStorage:', e);
+    }
+}
+
+function safeLocalStorageGet(key: string): string | null {
+    try {
+        // Try PlayCanvas editor method first
+        if (typeof editor !== 'undefined' && editor && typeof editor.call === 'function') {
+            try {
+                const value = editor.call('localStorage:get', key);
+                if (value !== undefined) return value || null;
+            } catch (e) {
+                // Method not available, fall through to native localStorage
+            }
+        }
+        // Fallback to native localStorage
+        return localStorage.getItem(key);
+    } catch (e) {
+        console.error('[PajamaDot] Failed to read from localStorage:', e);
+        return null;
+    }
+}
+
 class PajamaDotTokenManager {
     /**
      * Store API token in localStorage
      */
     static setToken(token: string): void {
-        editor.call('localStorage:set', TOKEN_KEY, token);
+        safeLocalStorageSet(TOKEN_KEY, token);
         console.log('[PajamaDot] API token stored');
     }
 
@@ -29,14 +69,14 @@ class PajamaDotTokenManager {
      * @returns Token string or null if not set
      */
     static getToken(): string | null {
-        return editor.call('localStorage:get', TOKEN_KEY) || null;
+        return safeLocalStorageGet(TOKEN_KEY);
     }
 
     /**
      * Remove stored API token
      */
     static clearToken(): void {
-        editor.call('localStorage:set', TOKEN_KEY, '');
+        safeLocalStorageSet(TOKEN_KEY, '');
         console.log('[PajamaDot] API token cleared');
     }
 
@@ -83,7 +123,7 @@ class PajamaDotTokenManager {
      * @returns Base URL for API calls
      */
     static getBaseUrl(): string {
-        return editor.call('localStorage:get', BASE_URL_KEY) || DEFAULT_BASE_URL;
+        return safeLocalStorageGet(BASE_URL_KEY) || DEFAULT_BASE_URL;
     }
 
     /**
@@ -91,14 +131,14 @@ class PajamaDotTokenManager {
      * @param url Custom base URL
      */
     static setBaseUrl(url: string): void {
-        editor.call('localStorage:set', BASE_URL_KEY, url);
+        safeLocalStorageSet(BASE_URL_KEY, url);
     }
 
     /**
      * Reset base URL to default
      */
     static resetBaseUrl(): void {
-        editor.call('localStorage:set', BASE_URL_KEY, '');
+        safeLocalStorageSet(BASE_URL_KEY, '');
     }
 
     /**
