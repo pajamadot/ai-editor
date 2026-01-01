@@ -140,8 +140,33 @@ async function sendCharacterData(assetId: number) {
 }
 
 function sendTokenToWindow() {
-    const token = editor.call('localStorage:get', 'pajamadot:api_token') || '';
-    const baseUrl = editor.call('localStorage:get', 'pajamadot:api_base_url') || 'https://generation.pajamadot.com';
+    // Use localStorage directly for reliability, matching the key used in settings-panels/pajamadot.ts
+    let token = '';
+    let baseUrl = 'https://generation.pajamadot.com';
+
+    try {
+        // Try editor method first
+        if (typeof editor !== 'undefined' && editor && typeof editor.call === 'function') {
+            try {
+                const t = editor.call('localStorage:get', 'pajamadot_api_token');
+                if (t) token = t;
+                const b = editor.call('localStorage:get', 'pajamadot_api_base_url');
+                if (b) baseUrl = b;
+            } catch (e) {
+                // Fallback to native localStorage
+            }
+        }
+        // Fallback to native localStorage if editor method didn't work
+        if (!token) {
+            token = localStorage.getItem('pajamadot_api_token') || '';
+        }
+        if (baseUrl === 'https://generation.pajamadot.com') {
+            const b = localStorage.getItem('pajamadot_api_base_url');
+            if (b) baseUrl = b;
+        }
+    } catch (e) {
+        console.error('[PajamaDot] Failed to get token:', e);
+    }
 
     if (characterEditorWindow && !characterEditorWindow.closed) {
         characterEditorWindow.postMessage({

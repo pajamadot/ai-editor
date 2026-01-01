@@ -5,8 +5,9 @@
 
 declare const editor: any;
 
-const TOKEN_KEY = 'pajamadot:api_token';
-const BASE_URL_KEY = 'pajamadot:api_base_url';
+// IMPORTANT: Must match the key used in settings-panels/pajamadot.ts
+const TOKEN_KEY = 'pajamadot_api_token';
+const BASE_URL_KEY = 'pajamadot_api_base_url';
 const DEFAULT_BASE_URL = 'https://generation.pajamadot.com';
 
 /**
