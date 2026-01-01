@@ -30,7 +30,6 @@ class StoryGraphAssetInspector extends Container {
     private _descriptionInput: TextAreaInput;
 
     readonly history: any;
-    readonly readOnly: boolean;
 
     constructor(args: any) {
         args = Object.assign({
@@ -40,7 +39,6 @@ class StoryGraphAssetInspector extends Container {
 
         this._args = args;
         this.history = args.history;
-        this.readOnly = !editor.call('permissions:write');
 
         // Create the graph view
         this._view = new StoryGraphView(this, args);
@@ -72,9 +70,9 @@ class StoryGraphAssetInspector extends Container {
 
         // Description input
         this._descriptionInput = new TextAreaInput({
-            placeholder: 'Story description...',
-            rows: 3
+            placeholder: 'Story description...'
         });
+        this._descriptionInput.dom.querySelector('textarea')!.rows = 3;
         const descGroup = new LabelGroup({
             text: 'Description',
             field: this._descriptionInput

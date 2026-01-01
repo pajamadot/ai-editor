@@ -13,7 +13,9 @@
       "Bash(del \"G:\\\\PajamaDot\\\\ai-editor\\\\src\\\\pajamadot\\\\panels\\\\story-panel.ts\")",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npx tsc:*)",
+      "Bash(taskkill:*)"
     ],
     "additionalDirectories": [
       "G:\\PajamaDot\\story"

@@ -5,8 +5,9 @@
 
 import { Container, Panel, LabelGroup, TextInput, TextAreaInput, SelectInput, BooleanInput } from '@playcanvas/pcui';
 
-import { PAJAMADOT_ASSET_TYPES, ITEM_TYPES } from '../constants';
+import { ITEM_TYPES } from '../constants';
 import type { StoryItemData } from '../types';
+import { loadYamlData, setCachedDataPath, saveYamlData } from '../yaml-data-manager';
 
 declare const editor: any;
 
@@ -16,6 +17,9 @@ class ItemAssetInspector extends Container {
     private _args: any;
     private _assets: any[] | null = null;
     private _assetEvents: any[] = [];
+    private _assetId: number | null = null;
+    private _data: StoryItemData | null = null;
+    private _saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // Panels
     private _basicPanel: Panel;
@@ -29,7 +33,6 @@ class ItemAssetInspector extends Container {
     private _stackableInput: BooleanInput;
 
     readonly history: any;
-    readonly readOnly: boolean;
 
     constructor(args: any) {
         args = Object.assign({
@@ -39,9 +42,27 @@ class ItemAssetInspector extends Container {
 
         this._args = args;
         this.history = args.history;
-        this.readOnly = !editor.call('permissions:write');
 
         this._buildDom();
+    }
+
+    /**
+     * Update data and schedule auto-save
+     */
+    private _updateData(path: string, value: any) {
+        if (!this._assetId) return;
+
+        setCachedDataPath(this._assetId, path, value);
+
+        // Debounce saves
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
+        }
+        this._saveTimeout = setTimeout(() => {
+            if (this._assetId) {
+                saveYamlData(this._assetId);
+            }
+        }, 500);
     }
 
     private _buildDom() {
@@ -64,9 +85,9 @@ class ItemAssetInspector extends Container {
 
         // Description input
         this._descriptionInput = new TextAreaInput({
-            placeholder: 'Item description...',
-            rows: 3
+            placeholder: 'Item description...'
         });
+        this._descriptionInput.dom.querySelector('textarea')!.rows = 3;
         const descGroup = new LabelGroup({
             text: 'Description',
             field: this._descriptionInput
@@ -119,38 +140,27 @@ class ItemAssetInspector extends Container {
 
         // Bind input events
         this._nameInput.on('change', (value: string) => {
-            if (this._assets?.[0]) {
-                this._assets[0].set('data.name', value);
-                this._assets[0].set('name', value);
-            }
+            this._updateData('name', value);
         });
 
         this._descriptionInput.on('change', (value: string) => {
-            if (this._assets?.[0]) {
-                this._assets[0].set('data.description', value);
-            }
+            this._updateData('description', value);
         });
 
         this._typeSelect.on('change', (value: string) => {
-            if (this._assets?.[0]) {
-                this._assets[0].set('data.itemType', value);
-            }
+            this._updateData('itemType', value);
         });
 
         this._usableInput.on('change', (value: boolean) => {
-            if (this._assets?.[0]) {
-                this._assets[0].set('data.usable', value);
-            }
+            this._updateData('usable', value);
         });
 
         this._stackableInput.on('change', (value: boolean) => {
-            if (this._assets?.[0]) {
-                this._assets[0].set('data.stackable', value);
-            }
+            this._updateData('stackable', value);
         });
     }
 
-    link(assets: any[]) {
+    async link(assets: any[]) {
         this.unlink();
 
         this._assets = assets;
@@ -160,7 +170,11 @@ class ItemAssetInspector extends Container {
         }
 
         const asset = assets[0];
-        const data = asset.get('data') as StoryItemData;
+        this._assetId = asset.get('id');
+
+        // Load YAML data
+        const data = await loadYamlData<StoryItemData>(this._assetId);
+        this._data = data;
 
         if (data) {
             this._nameInput.value = data.name || '';
@@ -169,41 +183,22 @@ class ItemAssetInspector extends Container {
             this._usableInput.value = data.usable || false;
             this._stackableInput.value = data.stackable || false;
         }
-
-        // Listen for data changes
-        this._assetEvents.push(
-            asset.on('data.name:set', (value: string) => {
-                this._nameInput.value = value;
-            })
-        );
-        this._assetEvents.push(
-            asset.on('data.description:set', (value: string) => {
-                this._descriptionInput.value = value;
-            })
-        );
-        this._assetEvents.push(
-            asset.on('data.itemType:set', (value: string) => {
-                this._typeSelect.value = value;
-            })
-        );
-        this._assetEvents.push(
-            asset.on('data.usable:set', (value: boolean) => {
-                this._usableInput.value = value;
-            })
-        );
-        this._assetEvents.push(
-            asset.on('data.stackable:set', (value: boolean) => {
-                this._stackableInput.value = value;
-            })
-        );
     }
 
     unlink() {
+        // Cancel pending save
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
+            this._saveTimeout = null;
+        }
+
         for (const evt of this._assetEvents) {
             evt.unbind?.();
         }
         this._assetEvents = [];
         this._assets = null;
+        this._assetId = null;
+        this._data = null;
     }
 
     destroy() {

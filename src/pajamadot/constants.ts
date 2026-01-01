@@ -129,3 +129,102 @@ export const STORY_EVENTS = {
     STORY_START: 'story:start',
     STORY_END: 'story:end'
 } as const;
+
+// =====================
+// AIGC Generation Options
+// =====================
+
+// Character poses for generation
+export const CHARACTER_POSES = [
+    { v: 'portrait', t: 'Portrait (Head)' },
+    { v: 'standing', t: 'Standing (Full Body)' },
+    { v: 'sitting', t: 'Sitting' },
+    { v: 'action', t: 'Action Pose' }
+] as const;
+
+// Character expressions
+export const CHARACTER_EXPRESSIONS = [
+    { v: 'neutral', t: 'Neutral' },
+    { v: 'happy', t: 'Happy' },
+    { v: 'sad', t: 'Sad' },
+    { v: 'angry', t: 'Angry' },
+    { v: 'surprised', t: 'Surprised' },
+    { v: 'thoughtful', t: 'Thoughtful' }
+] as const;
+
+// Camera angles
+export const CAMERA_ANGLES = [
+    { v: 'front', t: 'Front View' },
+    { v: 'side', t: 'Side Profile' },
+    { v: 'three-quarter', t: 'Three-Quarter' }
+] as const;
+
+// Art styles for character and location
+export const ART_STYLES = [
+    { v: 'anime', t: 'Anime' },
+    { v: 'realistic', t: 'Realistic' },
+    { v: 'painted', t: 'Painted' },
+    { v: 'pixel', t: 'Pixel Art' },
+    { v: 'comic', t: 'Comic' },
+    { v: 'watercolor', t: 'Watercolor' }
+] as const;
+
+// Time of day options
+export const TIME_OF_DAY = [
+    { v: 'dawn', t: 'Dawn' },
+    { v: 'morning', t: 'Morning' },
+    { v: 'noon', t: 'Noon' },
+    { v: 'sunset', t: 'Sunset' },
+    { v: 'dusk', t: 'Dusk' },
+    { v: 'night', t: 'Night' }
+] as const;
+
+// Weather options
+export const WEATHER_OPTIONS = [
+    { v: 'clear', t: 'Clear' },
+    { v: 'cloudy', t: 'Cloudy' },
+    { v: 'rain', t: 'Rain' },
+    { v: 'snow', t: 'Snow' },
+    { v: 'fog', t: 'Fog' },
+    { v: 'storm', t: 'Storm' }
+] as const;
+
+// Location types
+export const LOCATION_TYPES = [
+    { v: 'indoor', t: 'Indoor' },
+    { v: 'outdoor', t: 'Outdoor' },
+    { v: 'urban', t: 'Urban' },
+    { v: 'nature', t: 'Nature' },
+    { v: 'fantasy', t: 'Fantasy' },
+    { v: 'sci-fi', t: 'Sci-Fi' }
+] as const;
+
+// Scene moods for generation
+export const SCENE_MOODS = [
+    { v: 'peaceful', t: 'Peaceful' },
+    { v: 'tense', t: 'Tense' },
+    { v: 'mysterious', t: 'Mysterious' },
+    { v: 'romantic', t: 'Romantic' },
+    { v: 'melancholic', t: 'Melancholic' },
+    { v: 'cheerful', t: 'Cheerful' }
+] as const;
+
+// D&D Alignments
+export const ALIGNMENTS = [
+    { v: 'lawful-good', t: 'Lawful Good' },
+    { v: 'neutral-good', t: 'Neutral Good' },
+    { v: 'chaotic-good', t: 'Chaotic Good' },
+    { v: 'lawful-neutral', t: 'Lawful Neutral' },
+    { v: 'true-neutral', t: 'True Neutral' },
+    { v: 'chaotic-neutral', t: 'Chaotic Neutral' },
+    { v: 'lawful-evil', t: 'Lawful Evil' },
+    { v: 'neutral-evil', t: 'Neutral Evil' },
+    { v: 'chaotic-evil', t: 'Chaotic Evil' }
+] as const;
+
+// Generation quality options
+export const GENERATION_QUALITY = [
+    { v: 'fast', t: 'Fast (8 credits)' },
+    { v: 'standard', t: 'Standard (10 credits)' },
+    { v: 'high', t: 'High (15 credits)' }
+] as const;

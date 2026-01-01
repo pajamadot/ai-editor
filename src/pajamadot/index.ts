@@ -40,6 +40,9 @@ import './fullscreen';
 // Entity integration (Phase 8)
 import './entity';
 
+// AIGC Generation (Phase 9)
+import './generation';
+
 // Inspector integration (must be last - overrides assets:edit after everything is loaded)
 import './inspector/inspector-integration';
 
