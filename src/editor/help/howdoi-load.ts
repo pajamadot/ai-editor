@@ -1,5 +1,11 @@
 editor.once('load', () => {
-    fetch(`${config.url.frontend}static/json/howdoi.json`).then(res => res.json()).then((data) => {
+    fetch(`${config.url.frontend}static/json/howdoi.json`).then(res => {
+        if (!res.ok) {
+            // File not found or server error - silently skip
+            return null;
+        }
+        return res.json();
+    }).then((data) => {
         if (!data || !data.length) {
             return;
         }
