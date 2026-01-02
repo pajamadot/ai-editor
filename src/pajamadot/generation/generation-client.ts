@@ -144,6 +144,38 @@ class GenerationClient {
         });
     }
 
+    /**
+     * Upscale an image
+     * Cost: 3 credits
+     */
+    async upscaleImage(request: {
+        image_url: string;
+        scale_factor?: 2 | 4;
+    }): Promise<{ url: string; creditsCost: number; creditsRemaining: number }> {
+        return this.request<{ url: string; creditsCost: number; creditsRemaining: number }>('/image/upscale', {
+            method: 'POST',
+            body: JSON.stringify({
+                imageUrl: request.image_url,
+                scaleFactor: request.scale_factor ?? 2
+            })
+        });
+    }
+
+    /**
+     * Remove background from an image
+     * Cost: 2 credits
+     */
+    async removeBackground(request: {
+        image_url: string;
+    }): Promise<{ url: string; creditsCost: number; creditsRemaining: number }> {
+        return this.request<{ url: string; creditsCost: number; creditsRemaining: number }>('/image/remove-background', {
+            method: 'POST',
+            body: JSON.stringify({
+                imageUrl: request.image_url
+            })
+        });
+    }
+
     // ============================================================
     // Generation Job Management
     // ============================================================
@@ -152,28 +184,54 @@ class GenerationClient {
      * Get status of a specific generation job
      */
     async getJobStatus(requestId: string): Promise<GenerationJob> {
-        return this.request<GenerationJob>(`/generations/${requestId}/status`, {
+        // API returns { job: { ... } }, need to unwrap
+        const response = await this.request<{ job: GenerationJob }>(`/generations/${requestId}/status`, {
             method: 'GET'
         });
+        return response.job;
     }
 
     /**
      * List all generation jobs
+     * Backend returns { jobs: [...], total: number }
      */
     async listJobs(options?: {
+        projectId?: string;
         status?: GenerationJobStatus;
         limit?: number;
         offset?: number;
     }): Promise<GenerationListResponse> {
         const params = new URLSearchParams();
+        // Use provided projectId, or fall back to stored projectId from token manager
+        const projectId = options?.projectId || this._getProjectId();
+        if (projectId) params.set('projectId', projectId);
         if (options?.status) params.set('status', options.status);
         if (options?.limit) params.set('limit', options.limit.toString());
         if (options?.offset) params.set('offset', options.offset.toString());
 
         const query = params.toString() ? `?${params.toString()}` : '';
-        return this.request<GenerationListResponse>(`/generations/list${query}`, {
+        // Backend returns { jobs: [...], total: number }, map to frontend format
+        const response = await this.request<{ jobs: GenerationJob[]; total: number }>(`/generations/list${query}`, {
             method: 'GET'
         });
+
+        return {
+            generations: response.jobs || [],
+            total: response.total || 0,
+            hasMore: (response.total || 0) > (options?.offset || 0) + (options?.limit || 50)
+        };
+    }
+
+    /**
+     * Get project ID from token manager or stored config
+     */
+    private _getProjectId(): string | undefined {
+        // Try to get from tokenManager if available
+        if (typeof window !== 'undefined' && (window as any).pajamadotTokenManager) {
+            const token = (window as any).pajamadotTokenManager.getToken();
+            if (token?.projectId) return token.projectId;
+        }
+        return undefined;
     }
 
     /**

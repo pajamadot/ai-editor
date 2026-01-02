@@ -126,6 +126,17 @@ class AIGCMenu {
         });
         this._menu.append(assetGenItem);
 
+        // Active Jobs (for async generation tracking)
+        const activeJobsItem = new MenuItem({
+            text: 'Active Jobs',
+            icon: 'E171', // Process/running icon
+            onSelect: () => {
+                editor.call('picker:pajamadot:activejobs');
+                this._menu.open = false;
+            }
+        });
+        this._menu.append(activeJobsItem);
+
         // Generation History
         const historyItem = new MenuItem({
             text: 'Generation History',

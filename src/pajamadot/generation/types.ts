@@ -7,9 +7,13 @@
 export interface GenerationResult {
     success: boolean;
     imageUrl?: string;
+    // API returns images array for flux models
+    images?: Array<{ url: string; width?: number; height?: number; content_type?: string }>;
     assetId?: string;
     creditsCost: number;
     creditsRemaining: number;
+    requestId?: string;
+    model?: string;
     error?: string;
 }
 
@@ -119,7 +123,7 @@ export interface MeshGenerationResult {
 
 export type GenerationJobStatus = 'pending' | 'in_progress' | 'downloading' | 'uploading' | 'completed' | 'failed';
 
-export type MediaType = 'image' | 'video' | 'audio' | 'texture' | 'mesh' | 'voiceover' | 'music';
+export type MediaType = 'image' | 'video' | 'audio' | 'texture' | 'mesh' | '3d_model' | 'voiceover' | 'music';
 
 export interface GenerationJob {
     requestId: string;

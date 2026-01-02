@@ -4,6 +4,7 @@
  */
 
 import { generationClient } from './generation-client';
+import { assetImporter } from './asset-importer';
 import type { GenerationJob, GenerationJobStatus, MediaType } from './types';
 
 declare const editor: any;
@@ -28,17 +29,69 @@ class JobsManager {
     private _pollInterval: number | null = null;
     private _pollFrequency = 2000; // 2 seconds
     private _isPolling = false;
+    private _initialized = false;
 
     constructor() {
-        // Auto-start polling when initialized
-        this._initializePolling();
+        // Fetch active jobs from backend on initialization
+        this._initializeFromBackend();
     }
 
-    private _initializePolling(): void {
-        // Start polling after a short delay
-        setTimeout(() => {
-            this._checkActiveJobs();
-        }, 1000);
+    /**
+     * Initialize by fetching active jobs from backend
+     */
+    private async _initializeFromBackend(): Promise<void> {
+        // Wait a short delay for the editor to fully load
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        try {
+            await this._fetchActiveJobsFromBackend();
+            this._initialized = true;
+        } catch (e) {
+            console.warn('[JobsManager] Failed to fetch jobs from backend:', e);
+            this._initialized = true; // Still mark as initialized to allow new jobs
+        }
+    }
+
+    /**
+     * Fetch active (pending/in_progress) jobs from backend
+     */
+    private async _fetchActiveJobsFromBackend(): Promise<void> {
+        try {
+            // Fetch pending jobs
+            const pendingResponse = await generationClient.listJobs({
+                status: 'pending',
+                limit: 50
+            });
+
+            // Fetch in_progress jobs
+            const inProgressResponse = await generationClient.listJobs({
+                status: 'in_progress',
+                limit: 50
+            });
+
+            const allJobs = [
+                ...pendingResponse.generations,
+                ...inProgressResponse.generations
+            ];
+
+            console.log(`[JobsManager] Fetched ${allJobs.length} active jobs from backend`);
+
+            // Add jobs to tracking
+            allJobs.forEach(job => {
+                if (!this._activeJobs.has(job.requestId)) {
+                    this._activeJobs.set(job.requestId, job);
+                    this._emit({ type: 'job:added', job });
+                }
+            });
+
+            // Start polling if we have active jobs
+            if (allJobs.length > 0 && !this._pollInterval) {
+                this._startPolling();
+            }
+        } catch (e) {
+            console.warn('[JobsManager] Failed to fetch active jobs:', e);
+            throw e;
+        }
     }
 
     /**
@@ -170,7 +223,23 @@ class JobsManager {
                     const updated = await generationClient.getJobStatus(job.requestId);
                     this._updateJob(updated);
                 } catch (e) {
-                    console.warn(`[JobsManager] Failed to poll job ${job.requestId}:`, e);
+                    const errorMessage = e instanceof Error ? e.message : String(e);
+
+                    // If job not found (404), mark as failed and stop polling
+                    if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+                        console.warn(`[JobsManager] Job ${job.requestId} not found, marking as failed`);
+                        const failedJob: GenerationJob = {
+                            ...job,
+                            status: 'failed',
+                            errorMessage: 'Job not found on server - may have expired or failed to save'
+                        };
+                        this._activeJobs.set(job.requestId, failedJob);
+                        this._emit({ type: 'job:failed', job: failedJob });
+                        // Remove from tracking after a delay
+                        setTimeout(() => this.removeJob(job.requestId), 10000);
+                    } else {
+                        console.warn(`[JobsManager] Failed to poll job ${job.requestId}:`, e);
+                    }
                 }
             }
         } finally {
@@ -193,6 +262,13 @@ class JobsManager {
 
         if (updated.status === 'completed') {
             this._emit({ type: 'job:completed', job: updated });
+
+            // Auto-import mesh/3d_model jobs when completed
+            // These take 3-10 minutes, so users expect automatic asset creation
+            if (updated.generatedUrl && (updated.mediaType === 'mesh' || updated.mediaType === '3d_model')) {
+                this._autoImportJob(updated);
+            }
+
             // Remove from active jobs after completion
             setTimeout(() => this.removeJob(updated.requestId), 5000);
         } else if (updated.status === 'failed') {
@@ -205,23 +281,62 @@ class JobsManager {
     }
 
     /**
-     * Check for any active jobs on startup
-     * NOTE: This is skipped in PlayCanvas integration since we don't have a
-     * corresponding project in the PajamaDot backend. Jobs are only tracked
-     * for the current session when added via addJob().
+     * Auto-import a completed job's generated asset into PlayCanvas
+     * Used for mesh/3d_model jobs that take a long time to generate
+     */
+    private async _autoImportJob(job: GenerationJob): Promise<void> {
+        if (!job.generatedUrl) return;
+
+        try {
+            console.log(`[JobsManager] Auto-importing completed ${job.mediaType} job:`, job.requestId);
+
+            const folder = await assetImporter.getOrCreateAIGCFolder();
+            const prompt = String(job.input?.prompt || 'generated');
+            const baseName = prompt
+                .slice(0, 30)
+                .replace(/[^a-zA-Z0-9 ]/g, '')
+                .trim()
+                .replace(/\s+/g, '_') || 'generated';
+
+            const timestamp = Date.now().toString(36);
+            const assetName = `${baseName}_${timestamp}`;
+
+            const result = await assetImporter.importModelFromUrl(job.generatedUrl, assetName, {
+                folder: folder,
+                tags: ['aigc', 'mesh', '3d-model', 'auto-imported']
+            });
+
+            if (result.success) {
+                console.log('[JobsManager] Auto-imported mesh asset:', assetName, 'assetId:', result.assetId);
+                // Notify user via editor message
+                if (typeof editor !== 'undefined' && editor.call) {
+                    editor.call('realtime:notify', {
+                        type: 'success',
+                        title: '3D Model Generated',
+                        message: `Auto-imported: ${assetName}`,
+                        duration: 5000
+                    });
+                }
+            } else {
+                console.error('[JobsManager] Auto-import failed:', result.error);
+            }
+        } catch (error) {
+            console.error('[JobsManager] Auto-import error:', error);
+        }
+    }
+
+    /**
+     * Check for any active jobs on startup - now fetches from backend
      */
     private async _checkActiveJobs(): Promise<void> {
-        // Skip fetching active jobs from server - PlayCanvas doesn't have a
-        // corresponding project in the PajamaDot backend, so the API would fail.
-        // Instead, we only track jobs created during the current session.
-        console.log('[JobsManager] Skipping server job check (no project context)');
+        await this._fetchActiveJobsFromBackend();
     }
 
     /**
      * Refresh active jobs from server
      */
     async refresh(): Promise<void> {
-        await this._checkActiveJobs();
+        await this._fetchActiveJobsFromBackend();
     }
 
     /**

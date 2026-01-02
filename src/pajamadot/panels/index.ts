@@ -14,6 +14,7 @@ import './asset-generation-modal';
 
 // Generation job management and history
 import './active-jobs-panel';
+import './active-jobs-modal';
 import './generation-history-panel';
 
 // Credits display and history

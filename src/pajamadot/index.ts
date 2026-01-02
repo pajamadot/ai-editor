@@ -46,6 +46,9 @@ import './generation';
 // Asset Browser Integration (Phase 10) - Context menus, overlays, filters
 import './browser';
 
+// Toolbar Integration (Phase 11) - AIGC button in asset panel
+import './toolbar/aigc-button';
+
 // Inspector integration (must be last - overrides assets:edit after everything is loaded)
 import './inspector/inspector-integration';
 

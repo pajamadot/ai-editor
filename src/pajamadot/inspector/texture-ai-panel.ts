@@ -4,6 +4,8 @@
  */
 
 import { Button, Container, Label, Panel, SelectInput, TextInput } from '@playcanvas/pcui';
+import { textureClient } from '../generation/texture-client';
+import { assetImporter } from '../generation/asset-importer';
 
 declare const editor: any;
 
@@ -168,11 +170,22 @@ export class TextureAIPanel extends Container {
                 display: flex;
                 gap: 6px;
                 margin-bottom: 6px;
+                flex-wrap: wrap;
             }
 
             .texture-ai-btn {
                 flex: 1;
                 font-size: 11px;
+                min-width: 80px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .texture-ai-btn .pcui-button-text {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
             .texture-ai-btn.primary {
@@ -252,9 +265,6 @@ export class TextureAIPanel extends Container {
         this._setButtonsEnabled(false);
 
         try {
-            const { textureClient } = await import('../generation/texture-client');
-            const { assetImporter } = await import('../generation/asset-importer');
-
             const prompt = this._promptInput.value || this._asset.get('name');
             const style = this._styleSelect.value;
 

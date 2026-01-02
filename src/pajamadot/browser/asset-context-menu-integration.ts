@@ -3,6 +3,8 @@
  * Adds AI generation options to the PlayCanvas asset browser context menu
  */
 
+import { generationClient } from '../generation/generation-client';
+
 declare const editor: any;
 
 /**
@@ -253,15 +255,15 @@ function registerQuickActions(): void {
                 return;
             }
 
-            // Get asset URL
-            const url = await editor.call('assets:get:url', assetId);
-            if (!url) {
-                editor.call('status:error', 'Could not get asset URL');
+            // Get asset file URL - the correct way in PlayCanvas
+            const fileUrl = asset.get('file.url');
+            if (!fileUrl) {
+                editor.call('status:error', 'Could not get asset URL - asset has no file');
                 return;
             }
 
-            // Import upscale client
-            const { generationClient } = await import('../generation/generation-client');
+            // Build full URL if relative
+            const url = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
 
             // Call upscale API
             const result = await generationClient.upscaleImage({
@@ -270,13 +272,18 @@ function registerQuickActions(): void {
             });
 
             if (result.url) {
-                editor.call('status:log', `Upscale complete! Downloading...`);
-                // Import the upscaled image
-                await editor.call('assets:importUrl', result.url, {
-                    type: 'texture',
-                    name: `${asset.get('name')}_${scale}x`,
-                    folder: asset.get('path.folder')
+                editor.call('status:log', `Upscale complete! Importing...`);
+                // Import the upscaled image using assetImporter
+                const { assetImporter } = await import('../generation/asset-importer');
+                const assetName = asset.get('name') || 'upscaled';
+                const baseName = assetName.replace(/\.(png|jpg|jpeg|webp)$/i, '');
+                await assetImporter.importTextureFromUrl(result.url, `${baseName}_${scale}x`, {
+                    tags: ['aigc', 'upscaled']
                 });
+                editor.call('status:log', `Upscaled image imported!`);
+                editor.call('aigc:credits:refresh');
+            } else {
+                editor.call('status:error', result.error || 'Upscale failed');
             }
         } catch (error) {
             console.error('[PajamaDot] Upscale error:', error);
@@ -295,14 +302,19 @@ function registerQuickActions(): void {
                 return;
             }
 
-            // Get asset URL
-            const url = await editor.call('assets:get:url', assetId);
-            if (!url) {
-                editor.call('status:error', 'Could not get asset URL');
+            // Get asset file URL - the correct way in PlayCanvas
+            const fileUrl = asset.get('file.url');
+            if (!fileUrl) {
+                editor.call('status:error', 'Could not get asset URL - asset has no file');
                 return;
             }
 
+            // Build full URL if relative
+            const url = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
+
             // TODO: Implement PBR generation via generation client
+            // For now, show that we at least got the URL correctly
+            console.log('[PajamaDot] PBR source URL:', url);
             editor.call('status:log', 'PBR generation coming soon!');
         } catch (error) {
             console.error('[PajamaDot] PBR generation error:', error);
@@ -321,15 +333,15 @@ function registerQuickActions(): void {
                 return;
             }
 
-            // Get asset URL
-            const url = await editor.call('assets:get:url', assetId);
-            if (!url) {
-                editor.call('status:error', 'Could not get asset URL');
+            // Get asset file URL - the correct way in PlayCanvas
+            const fileUrl = asset.get('file.url');
+            if (!fileUrl) {
+                editor.call('status:error', 'Could not get asset URL - asset has no file');
                 return;
             }
 
-            // Import generation client
-            const { generationClient } = await import('../generation/generation-client');
+            // Build full URL if relative
+            const url = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
 
             // Call remove background API
             const result = await generationClient.removeBackground({
@@ -338,12 +350,17 @@ function registerQuickActions(): void {
 
             if (result.url) {
                 editor.call('status:log', 'Background removed! Importing...');
-                // Import the result
-                await editor.call('assets:importUrl', result.url, {
-                    type: 'texture',
-                    name: `${asset.get('name')}_nobg`,
-                    folder: asset.get('path.folder')
+                // Import the result using assetImporter
+                const { assetImporter } = await import('../generation/asset-importer');
+                const assetName = asset.get('name') || 'image';
+                const baseName = assetName.replace(/\.(png|jpg|jpeg|webp)$/i, '');
+                await assetImporter.importTextureFromUrl(result.url, `${baseName}_nobg`, {
+                    tags: ['aigc', 'background-removed']
                 });
+                editor.call('status:log', `Background removed and imported!`);
+                editor.call('aigc:credits:refresh');
+            } else {
+                editor.call('status:error', result.error || 'Background removal failed');
             }
         } catch (error) {
             console.error('[PajamaDot] Remove background error:', error);

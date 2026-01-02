@@ -88,8 +88,12 @@ class AssetImporter {
             }
             const blob = await response.blob();
 
-            // Convert blob to file
-            const file = new File([blob], `${name}.png`, { type: 'image/png' });
+            // Detect content type and extension
+            const contentType = blob.type || response.headers.get('content-type') || 'image/png';
+            const ext = this._getExtensionFromMimeType(contentType);
+
+            // Convert blob to file with correct type
+            const file = new File([blob], `${name}${ext}`, { type: contentType });
 
             // Import into PlayCanvas
             return await this.importTexture(file, name, options);
@@ -99,6 +103,22 @@ class AssetImporter {
                 error: error instanceof Error ? error.message : 'Failed to import texture'
             };
         }
+    }
+
+    /**
+     * Get file extension from MIME type
+     */
+    private _getExtensionFromMimeType(mimeType: string): string {
+        const mimeToExt: Record<string, string> = {
+            'image/png': '.png',
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/webp': '.webp',
+            'image/gif': '.gif',
+            'image/bmp': '.bmp',
+            'image/tiff': '.tiff'
+        };
+        return mimeToExt[mimeType.toLowerCase()] || '.png';
     }
 
     /**
@@ -118,26 +138,72 @@ class AssetImporter {
         }
     ): Promise<ImportResult> {
         return new Promise((resolve) => {
-            editor.call('assets:create', {
-                name: name,
+            // Ensure file has proper name with extension
+            let fileName = name;
+            if (file instanceof File) {
+                fileName = file.name;
+            } else {
+                // For Blob, ensure we have an extension
+                const ext = this._getExtensionFromMimeType((file as Blob).type || 'image/png');
+                if (!name.toLowerCase().endsWith(ext)) {
+                    fileName = `${name}${ext}`;
+                }
+            }
+
+            // Convert Blob to File if needed (PlayCanvas needs File object)
+            const uploadFile = file instanceof File ? file : new File([file], fileName, { type: file.type || 'image/png' });
+
+            console.log('[AssetImporter] Uploading texture:', fileName, 'type:', uploadFile.type);
+
+            // Use assets:uploadFile for proper texture creation via pipeline
+            // NOT passing 'asset' triggers assetCreate instead of assetUpdate
+            editor.call('assets:uploadFile', {
+                file: uploadFile,
                 type: 'texture',
-                file: file,
-                source: true,
-                preload: true,
-                folder: options?.folder,
-                tags: options?.tags
-            }, (err: Error | null, asset: any) => {
+                name: fileName,
+                parent: options?.folder || null,
+                pipeline: true,
+                preload: true
+            }, (err: Error | null, data: any) => {
                 if (err) {
+                    console.error('[AssetImporter] Texture upload error:', err);
                     resolve({
                         success: false,
-                        error: err.message
+                        error: typeof err === 'string' ? err : err.message
                     });
                 } else {
-                    resolve({
-                        success: true,
-                        asset: asset,
-                        assetId: asset?.get('id')
-                    });
+                    console.log('[AssetImporter] Texture upload response:', data);
+
+                    // Wait for asset to be available in the assets list
+                    const assetId = data?.id;
+                    if (assetId) {
+                        // Try to get the asset, it might not be immediately available
+                        const checkAsset = () => {
+                            const asset = editor.call('assets:get', assetId);
+                            if (asset) {
+                                // Add AIGC tag
+                                if (options?.tags && options.tags.length > 0) {
+                                    const existingTags = asset.get('tags') || [];
+                                    asset.set('tags', [...existingTags, ...options.tags]);
+                                }
+                                console.log('[AssetImporter] Texture created:', assetId, asset.get('type'));
+                                resolve({
+                                    success: true,
+                                    asset: asset,
+                                    assetId: assetId
+                                });
+                            } else {
+                                // Wait a bit and try again
+                                setTimeout(checkAsset, 100);
+                            }
+                        };
+                        checkAsset();
+                    } else {
+                        resolve({
+                            success: true,
+                            assetId: data?.id
+                        });
+                    }
                 }
             });
         });
@@ -183,10 +249,14 @@ class AssetImporter {
     /**
      * Import a model file into PlayCanvas
      *
+     * Uses assets:uploadFile with pipeline:true to properly process GLB files.
+     * This triggers the asset pipeline which creates container assets with
+     * embedded meshes, materials, and textures - not raw binary assets.
+     *
      * @param file - Model file (GLB/GLTF) to import
      * @param name - Name for the model asset
      * @param options - Additional options
-     * @returns Imported model asset
+     * @returns Imported model asset (container with model hierarchy)
      */
     async importModel(
         file: File | Blob,
@@ -197,27 +267,78 @@ class AssetImporter {
         }
     ): Promise<ImportResult> {
         return new Promise((resolve) => {
-            // Use container type for GLB files
-            editor.call('assets:create', {
-                name: name,
-                type: 'container',
-                file: file,
-                source: true,
-                preload: true,
-                folder: options?.folder,
-                tags: options?.tags
-            }, (err: Error | null, asset: any) => {
+            // Ensure file has proper name with .glb extension
+            let fileName = name;
+            if (!name.toLowerCase().endsWith('.glb') && !name.toLowerCase().endsWith('.gltf')) {
+                fileName = `${name}.glb`;
+            }
+
+            // Convert Blob to File if needed (PlayCanvas needs File object with correct type)
+            const uploadFile = file instanceof File
+                ? file
+                : new File([file], fileName, { type: 'model/gltf-binary' });
+
+            console.log('[AssetImporter] Uploading GLB model:', fileName, 'type:', uploadFile.type, 'size:', uploadFile.size);
+
+            // Use assets:uploadFile with pipeline:true for proper GLB processing
+            // This triggers the asset pipeline which creates:
+            // - A container asset with the model hierarchy
+            // - Embedded model, material, and texture assets
+            // - Proper mesh data (not raw binary)
+            // NOTE: GLB files use type 'scene' (not 'container' or 'model')
+            // The 'scene' type triggers PlayCanvas's model import pipeline
+            editor.call('assets:uploadFile', {
+                file: uploadFile,
+                type: 'scene', // GLB files use 'scene' type for 3D model import pipeline
+                name: fileName,
+                parent: options?.folder || null,
+                pipeline: true,   // CRITICAL: Process through asset pipeline
+                preload: true
+            }, (err: Error | null, data: any) => {
                 if (err) {
+                    console.error('[AssetImporter] Model upload error:', err);
                     resolve({
                         success: false,
-                        error: err.message
+                        error: typeof err === 'string' ? err : err.message
                     });
                 } else {
-                    resolve({
-                        success: true,
-                        asset: asset,
-                        assetId: asset?.get('id')
-                    });
+                    console.log('[AssetImporter] Model upload response:', data);
+
+                    // Wait for asset to be available in the assets list
+                    const assetId = data?.id;
+                    if (assetId) {
+                        // Try to get the asset, it might not be immediately available
+                        const checkAsset = () => {
+                            const asset = editor.call('assets:get', assetId);
+                            if (asset) {
+                                // Add AIGC tags
+                                const baseTags = ['aigc', '3d-model', 'auto-imported'];
+                                const allTags = options?.tags
+                                    ? [...baseTags, ...options.tags]
+                                    : baseTags;
+                                const existingTags = asset.get('tags') || [];
+                                const uniqueTags = [...new Set([...existingTags, ...allTags])];
+                                asset.set('tags', uniqueTags);
+
+                                console.log('[AssetImporter] Model created:', assetId, 'type:', asset.get('type'));
+                                resolve({
+                                    success: true,
+                                    asset: asset,
+                                    assetId: assetId
+                                });
+                            } else {
+                                // Wait a bit and try again (pipeline processing takes time)
+                                setTimeout(checkAsset, 200);
+                            }
+                        };
+                        // Give the pipeline some time to start processing
+                        setTimeout(checkAsset, 500);
+                    } else {
+                        resolve({
+                            success: true,
+                            assetId: data?.id
+                        });
+                    }
                 }
             });
         });
