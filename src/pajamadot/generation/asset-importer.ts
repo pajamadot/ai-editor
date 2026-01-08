@@ -495,6 +495,277 @@ class AssetImporter {
     }
 
     /**
+     * Import a video from URL into PlayCanvas
+     *
+     * @param videoUrl - URL of the video to import
+     * @param name - Name for the video asset
+     * @param options - Additional options
+     * @returns Imported video asset
+     */
+    async importVideoFromUrl(
+        videoUrl: string,
+        name: string,
+        options?: {
+            folder?: any;
+            tags?: string[];
+        }
+    ): Promise<ImportResult> {
+        try {
+            // Fetch the video as a blob
+            const response = await fetch(videoUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch video: ${response.status}`);
+            }
+            const blob = await response.blob();
+
+            // Detect content type and extension
+            const contentType = blob.type || response.headers.get('content-type') || 'video/mp4';
+            const ext = this._getVideoExtension(contentType);
+
+            // Convert blob to file
+            const file = new File([blob], `${name}${ext}`, { type: contentType });
+
+            // Import into PlayCanvas
+            return await this.importVideo(file, name, options);
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to import video'
+            };
+        }
+    }
+
+    /**
+     * Get video file extension from MIME type
+     */
+    private _getVideoExtension(mimeType: string): string {
+        const mimeToExt: Record<string, string> = {
+            'video/mp4': '.mp4',
+            'video/webm': '.webm',
+            'video/ogg': '.ogv',
+            'video/quicktime': '.mov'
+        };
+        return mimeToExt[mimeType.toLowerCase()] || '.mp4';
+    }
+
+    /**
+     * Import a video file into PlayCanvas
+     *
+     * @param file - Video file to import
+     * @param name - Name for the video asset
+     * @param options - Additional options
+     * @returns Imported video asset
+     */
+    async importVideo(
+        file: File | Blob,
+        name: string,
+        options?: {
+            folder?: any;
+            tags?: string[];
+        }
+    ): Promise<ImportResult> {
+        return new Promise((resolve) => {
+            let fileName = name;
+            if (!name.toLowerCase().match(/\.(mp4|webm|ogv|mov)$/)) {
+                fileName = `${name}.mp4`;
+            }
+
+            const uploadFile = file instanceof File
+                ? file
+                : new File([file], fileName, { type: file.type || 'video/mp4' });
+
+            console.log('[AssetImporter] Uploading video:', fileName, 'type:', uploadFile.type);
+
+            // PlayCanvas doesn't have a native video asset type
+            // We store it as a binary asset that can be referenced
+            editor.call('assets:uploadFile', {
+                file: uploadFile,
+                type: 'binary', // Use binary for video files
+                name: fileName,
+                parent: options?.folder || null,
+                preload: true
+            }, (err: Error | null, data: any) => {
+                if (err) {
+                    console.error('[AssetImporter] Video upload error:', err);
+                    resolve({
+                        success: false,
+                        error: typeof err === 'string' ? err : err.message
+                    });
+                } else {
+                    console.log('[AssetImporter] Video upload response:', data);
+
+                    const assetId = data?.id;
+                    if (assetId) {
+                        const checkAsset = () => {
+                            const asset = editor.call('assets:get', assetId);
+                            if (asset) {
+                                const baseTags = ['aigc', 'video'];
+                                const allTags = options?.tags
+                                    ? [...new Set([...baseTags, ...options.tags])]
+                                    : baseTags;
+                                const existingTags = asset.get('tags') || [];
+                                asset.set('tags', [...new Set([...existingTags, ...allTags])]);
+
+                                console.log('[AssetImporter] Video created:', assetId);
+                                resolve({
+                                    success: true,
+                                    asset: asset,
+                                    assetId: assetId
+                                });
+                            } else {
+                                setTimeout(checkAsset, 100);
+                            }
+                        };
+                        checkAsset();
+                    } else {
+                        resolve({
+                            success: true,
+                            assetId: data?.id
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    /**
+     * Import an audio file from URL into PlayCanvas
+     *
+     * @param audioUrl - URL of the audio to import
+     * @param name - Name for the audio asset
+     * @param options - Additional options
+     * @returns Imported audio asset
+     */
+    async importAudioFromUrl(
+        audioUrl: string,
+        name: string,
+        options?: {
+            folder?: any;
+            tags?: string[];
+        }
+    ): Promise<ImportResult> {
+        try {
+            // Fetch the audio as a blob
+            const response = await fetch(audioUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch audio: ${response.status}`);
+            }
+            const blob = await response.blob();
+
+            // Detect content type and extension
+            const contentType = blob.type || response.headers.get('content-type') || 'audio/mpeg';
+            const ext = this._getAudioExtension(contentType);
+
+            // Convert blob to file
+            const file = new File([blob], `${name}${ext}`, { type: contentType });
+
+            // Import into PlayCanvas
+            return await this.importAudio(file, name, options);
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to import audio'
+            };
+        }
+    }
+
+    /**
+     * Get audio file extension from MIME type
+     */
+    private _getAudioExtension(mimeType: string): string {
+        const mimeToExt: Record<string, string> = {
+            'audio/mpeg': '.mp3',
+            'audio/mp3': '.mp3',
+            'audio/wav': '.wav',
+            'audio/x-wav': '.wav',
+            'audio/ogg': '.ogg',
+            'audio/webm': '.webm',
+            'audio/aac': '.aac',
+            'audio/flac': '.flac'
+        };
+        return mimeToExt[mimeType.toLowerCase()] || '.mp3';
+    }
+
+    /**
+     * Import an audio file into PlayCanvas
+     *
+     * @param file - Audio file to import
+     * @param name - Name for the audio asset
+     * @param options - Additional options
+     * @returns Imported audio asset
+     */
+    async importAudio(
+        file: File | Blob,
+        name: string,
+        options?: {
+            folder?: any;
+            tags?: string[];
+        }
+    ): Promise<ImportResult> {
+        return new Promise((resolve) => {
+            let fileName = name;
+            if (!name.toLowerCase().match(/\.(mp3|wav|ogg|webm|aac|flac)$/)) {
+                fileName = `${name}.mp3`;
+            }
+
+            const uploadFile = file instanceof File
+                ? file
+                : new File([file], fileName, { type: file.type || 'audio/mpeg' });
+
+            console.log('[AssetImporter] Uploading audio:', fileName, 'type:', uploadFile.type);
+
+            // Use audio type for proper audio asset creation
+            editor.call('assets:uploadFile', {
+                file: uploadFile,
+                type: 'audio',
+                name: fileName,
+                parent: options?.folder || null,
+                preload: true
+            }, (err: Error | null, data: any) => {
+                if (err) {
+                    console.error('[AssetImporter] Audio upload error:', err);
+                    resolve({
+                        success: false,
+                        error: typeof err === 'string' ? err : err.message
+                    });
+                } else {
+                    console.log('[AssetImporter] Audio upload response:', data);
+
+                    const assetId = data?.id;
+                    if (assetId) {
+                        const checkAsset = () => {
+                            const asset = editor.call('assets:get', assetId);
+                            if (asset) {
+                                const baseTags = ['aigc', 'audio'];
+                                const allTags = options?.tags
+                                    ? [...new Set([...baseTags, ...options.tags])]
+                                    : baseTags;
+                                const existingTags = asset.get('tags') || [];
+                                asset.set('tags', [...new Set([...existingTags, ...allTags])]);
+
+                                console.log('[AssetImporter] Audio created:', assetId, asset.get('type'));
+                                resolve({
+                                    success: true,
+                                    asset: asset,
+                                    assetId: assetId
+                                });
+                            } else {
+                                setTimeout(checkAsset, 100);
+                            }
+                        };
+                        checkAsset();
+                    } else {
+                        resolve({
+                            success: true,
+                            assetId: data?.id
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    /**
      * Create or get the AIGC assets folder
      *
      * @returns The AIGC folder asset

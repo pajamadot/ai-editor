@@ -1,7 +1,11 @@
 /**
  * Asset Generation Modal
- * Simplified modal with Image and 3D Model generation tabs
- * 3D Model supports two modes: Image-to-3D (Trellis) and Text-to-3D (Meshy v6)
+ * Comprehensive AIGC modal with all generation types:
+ * - Image/Texture generation
+ * - 3D Model generation (Image-to-3D and Text-to-3D)
+ * - Video generation (Text-to-Video and Image-to-Video)
+ * - Audio generation (TTS, Sound Effects)
+ * - Music generation (with presets)
  * Uses PlayCanvas CSS variables for consistent theming
  */
 
@@ -9,13 +13,16 @@ import { Button, Container, Label, TextAreaInput, SelectInput, SliderInput, Bool
 import { PajamaDotTokenManager } from '../generation/token-manager';
 import { generationClient } from '../generation/generation-client';
 import { meshClient, type MeshGenerationMode, type MeshGenerationResponse } from '../generation/mesh-client';
+import { videoClient, type VideoStyle, type MotionIntensity } from '../generation/video-client';
+import { audioClient, type VoiceStyle, type VoiceGender } from '../generation/audio-client';
+import { musicClient, type MusicGenre, type MusicMood, MUSIC_PRESETS } from '../generation/music-client';
 import { assetImporter } from '../generation/asset-importer';
 import { jobsManager } from '../generation/jobs-manager';
 import type { GenerationJob } from '../generation/types';
 
 declare const editor: any;
 
-type GenerationType = 'image' | 'mesh' | 'jobs';
+type GenerationType = 'image' | 'mesh' | 'video' | 'audio' | 'music' | 'jobs';
 
 interface GenerationConfig {
     type: GenerationType;
@@ -28,21 +35,42 @@ interface GenerationConfig {
 const GENERATION_TYPES: GenerationConfig[] = [
     {
         type: 'image',
-        label: 'Image / Texture',
+        label: 'Image',
         icon: '🎨',
         description: 'Generate images, textures, and sprites',
         costCredits: 4
     },
     {
         type: 'mesh',
-        label: '3D Model',
+        label: '3D',
         icon: '📦',
         description: 'Generate 3D models from text or image',
-        costCredits: 20 // Base cost (image_to_3d)
+        costCredits: 20
+    },
+    {
+        type: 'video',
+        label: 'Video',
+        icon: '🎬',
+        description: 'Generate videos and animations',
+        costCredits: 25
+    },
+    {
+        type: 'audio',
+        label: 'Audio',
+        icon: '🎤',
+        description: 'Generate voiceovers and sound effects',
+        costCredits: 5
+    },
+    {
+        type: 'music',
+        label: 'Music',
+        icon: '🎵',
+        description: 'Generate background music and soundtracks',
+        costCredits: 15
     },
     {
         type: 'jobs',
-        label: 'Active Jobs',
+        label: 'Jobs',
         icon: '⏳',
         description: 'View and manage active generation jobs',
         costCredits: null
@@ -139,8 +167,33 @@ class AssetGenerationModal {
     private _polycountSlider: SliderInput | null = null;
     private _topologySelect: SelectInput | null = null;
 
+    // Video-specific UI elements
+    private _videoOptionsContainer: HTMLElement | null = null;
+    private _videoModeContainer: HTMLElement | null = null;
+    private _videoStyleSelect: SelectInput | null = null;
+    private _videoMotionSelect: SelectInput | null = null;
+    private _videoDurationSlider: SliderInput | null = null;
+    private _videoImageUrlInput: TextInput | null = null;
+    private _currentVideoMode: 'text_to_video' | 'image_to_video' = 'text_to_video';
+
+    // Audio-specific UI elements
+    private _audioOptionsContainer: HTMLElement | null = null;
+    private _audioModeContainer: HTMLElement | null = null;
+    private _voiceStyleSelect: SelectInput | null = null;
+    private _voiceGenderSelect: SelectInput | null = null;
+    private _speechSpeedSlider: SliderInput | null = null;
+    private _currentAudioMode: 'tts' | 'sfx' = 'tts';
+
+    // Music-specific UI elements
+    private _musicOptionsContainer: HTMLElement | null = null;
+    private _musicPresetSelect: SelectInput | null = null;
+    private _musicGenreSelect: SelectInput | null = null;
+    private _musicMoodSelect: SelectInput | null = null;
+    private _musicDurationSlider: SliderInput | null = null;
+    private _musicLoopableToggle: BooleanInput | null = null;
+
     // Current generation result
-    private _currentResult: { url: string; prompt: string } | null = null;
+    private _currentResult: { url: string; prompt: string; type?: string } | null = null;
 
     // Jobs panel
     private _jobsPanelContainer: HTMLElement | null = null;
@@ -393,6 +446,319 @@ class AssetGenerationModal {
 
         content.appendChild(this._textOptionsContainer);
 
+        // ======== VIDEO OPTIONS ========
+        this._videoModeContainer = document.createElement('div');
+        this._videoModeContainer.className = 'pajamadot-aigc-video-modes';
+        this._videoModeContainer.style.display = 'none';
+        this._videoModeContainer.innerHTML = `
+            <label class="pajamadot-aigc-label">Video Mode</label>
+            <div class="pajamadot-mesh-mode-buttons">
+                <button class="pajamadot-mesh-mode-btn active" data-mode="text_to_video">
+                    <span class="mode-icon">💬</span>
+                    <span class="mode-label">Text → Video</span>
+                    <span class="mode-info">25cr • 1-3min</span>
+                </button>
+                <button class="pajamadot-mesh-mode-btn" data-mode="image_to_video">
+                    <span class="mode-icon">🖼️</span>
+                    <span class="mode-label">Image → Video</span>
+                    <span class="mode-info">20cr • 1-2min</span>
+                </button>
+            </div>
+        `;
+        this._videoModeContainer.querySelectorAll('.pajamadot-mesh-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = (btn as HTMLElement).dataset.mode as 'text_to_video' | 'image_to_video';
+                this._switchVideoMode(mode);
+            });
+        });
+        content.appendChild(this._videoModeContainer);
+
+        this._videoOptionsContainer = document.createElement('div');
+        this._videoOptionsContainer.className = 'pajamadot-aigc-video-options';
+        this._videoOptionsContainer.style.display = 'none';
+
+        // Video style and motion row
+        const videoStyleRow = document.createElement('div');
+        videoStyleRow.className = 'pajamadot-aigc-options';
+
+        const videoStyleSection = document.createElement('div');
+        videoStyleSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        videoStyleSection.innerHTML = `<label class="pajamadot-aigc-label">Style</label>`;
+        const videoStyleContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._videoStyleSelect = new SelectInput({
+            options: [
+                { v: 'cinematic', t: 'Cinematic' },
+                { v: 'realistic', t: 'Realistic' },
+                { v: 'cartoon', t: 'Cartoon' },
+                { v: 'anime', t: 'Anime' },
+                { v: 'fantasy', t: 'Fantasy' },
+                { v: 'scifi', t: 'Sci-Fi' }
+            ],
+            value: 'cinematic'
+        });
+        videoStyleContainer.append(this._videoStyleSelect);
+        videoStyleSection.appendChild(videoStyleContainer.dom);
+        videoStyleRow.appendChild(videoStyleSection);
+
+        const videoMotionSection = document.createElement('div');
+        videoMotionSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        videoMotionSection.innerHTML = `<label class="pajamadot-aigc-label">Motion</label>`;
+        const videoMotionContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._videoMotionSelect = new SelectInput({
+            options: [
+                { v: 'subtle', t: 'Subtle' },
+                { v: 'gentle', t: 'Gentle' },
+                { v: 'moderate', t: 'Moderate' },
+                { v: 'dynamic', t: 'Dynamic' }
+            ],
+            value: 'moderate'
+        });
+        videoMotionContainer.append(this._videoMotionSelect);
+        videoMotionSection.appendChild(videoMotionContainer.dom);
+        videoStyleRow.appendChild(videoMotionSection);
+
+        this._videoOptionsContainer.appendChild(videoStyleRow);
+
+        // Video duration slider
+        const videoDurationSection = document.createElement('div');
+        videoDurationSection.className = 'pajamadot-aigc-section';
+        videoDurationSection.innerHTML = `<label class="pajamadot-aigc-label">Duration: <span class="duration-value">5</span> seconds</label>`;
+        const videoDurationContainer = new Container({ class: 'pajamadot-aigc-slider-wrap' });
+        this._videoDurationSlider = new SliderInput({
+            min: 3,
+            max: 10,
+            step: 1,
+            value: 5
+        });
+        this._videoDurationSlider.on('change', (value: number) => {
+            const valueSpan = videoDurationSection.querySelector('.duration-value');
+            if (valueSpan) valueSpan.textContent = value.toString();
+        });
+        videoDurationContainer.append(this._videoDurationSlider);
+        videoDurationSection.appendChild(videoDurationContainer.dom);
+        this._videoOptionsContainer.appendChild(videoDurationSection);
+
+        // Video image URL input (for image-to-video, hidden by default)
+        const videoImageSection = document.createElement('div');
+        videoImageSection.className = 'pajamadot-aigc-section pajamadot-video-image-section';
+        videoImageSection.style.display = 'none';
+        videoImageSection.innerHTML = `<label class="pajamadot-aigc-label">Source Image URL</label>`;
+        const videoImageContainer = new Container({ class: 'pajamadot-aigc-input-wrap' });
+        this._videoImageUrlInput = new TextInput({
+            placeholder: 'https://... paste image URL here',
+            class: 'pajamadot-aigc-url-input'
+        });
+        videoImageContainer.append(this._videoImageUrlInput);
+        videoImageSection.appendChild(videoImageContainer.dom);
+        this._videoOptionsContainer.appendChild(videoImageSection);
+
+        content.appendChild(this._videoOptionsContainer);
+
+        // ======== AUDIO OPTIONS ========
+        this._audioModeContainer = document.createElement('div');
+        this._audioModeContainer.className = 'pajamadot-aigc-audio-modes';
+        this._audioModeContainer.style.display = 'none';
+        this._audioModeContainer.innerHTML = `
+            <label class="pajamadot-aigc-label">Audio Mode</label>
+            <div class="pajamadot-mesh-mode-buttons">
+                <button class="pajamadot-mesh-mode-btn active" data-mode="tts">
+                    <span class="mode-icon">🎤</span>
+                    <span class="mode-label">Text to Speech</span>
+                    <span class="mode-info">5cr/100ch</span>
+                </button>
+                <button class="pajamadot-mesh-mode-btn" data-mode="sfx">
+                    <span class="mode-icon">🔊</span>
+                    <span class="mode-label">Sound Effect</span>
+                    <span class="mode-info">8cr</span>
+                </button>
+            </div>
+        `;
+        this._audioModeContainer.querySelectorAll('.pajamadot-mesh-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = (btn as HTMLElement).dataset.mode as 'tts' | 'sfx';
+                this._switchAudioMode(mode);
+            });
+        });
+        content.appendChild(this._audioModeContainer);
+
+        this._audioOptionsContainer = document.createElement('div');
+        this._audioOptionsContainer.className = 'pajamadot-aigc-audio-options';
+        this._audioOptionsContainer.style.display = 'none';
+
+        // Voice style and gender row (for TTS)
+        const voiceRow = document.createElement('div');
+        voiceRow.className = 'pajamadot-aigc-options pajamadot-tts-options';
+
+        const voiceStyleSection = document.createElement('div');
+        voiceStyleSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        voiceStyleSection.innerHTML = `<label class="pajamadot-aigc-label">Voice Style</label>`;
+        const voiceStyleContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._voiceStyleSelect = new SelectInput({
+            options: [
+                { v: 'neutral', t: 'Neutral' },
+                { v: 'happy', t: 'Happy' },
+                { v: 'sad', t: 'Sad' },
+                { v: 'angry', t: 'Angry' },
+                { v: 'fearful', t: 'Fearful' },
+                { v: 'whispering', t: 'Whispering' }
+            ],
+            value: 'neutral'
+        });
+        voiceStyleContainer.append(this._voiceStyleSelect);
+        voiceStyleSection.appendChild(voiceStyleContainer.dom);
+        voiceRow.appendChild(voiceStyleSection);
+
+        const voiceGenderSection = document.createElement('div');
+        voiceGenderSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        voiceGenderSection.innerHTML = `<label class="pajamadot-aigc-label">Voice Gender</label>`;
+        const voiceGenderContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._voiceGenderSelect = new SelectInput({
+            options: [
+                { v: 'male', t: 'Male' },
+                { v: 'female', t: 'Female' },
+                { v: 'neutral', t: 'Neutral' }
+            ],
+            value: 'female'
+        });
+        voiceGenderContainer.append(this._voiceGenderSelect);
+        voiceGenderSection.appendChild(voiceGenderContainer.dom);
+        voiceRow.appendChild(voiceGenderSection);
+
+        this._audioOptionsContainer.appendChild(voiceRow);
+
+        // Speech speed slider
+        const speedSection = document.createElement('div');
+        speedSection.className = 'pajamadot-aigc-section pajamadot-tts-options';
+        speedSection.innerHTML = `<label class="pajamadot-aigc-label">Speech Speed: <span class="speed-value">1.0</span>x</label>`;
+        const speedContainer = new Container({ class: 'pajamadot-aigc-slider-wrap' });
+        this._speechSpeedSlider = new SliderInput({
+            min: 0.5,
+            max: 2.0,
+            step: 0.1,
+            value: 1.0
+        });
+        this._speechSpeedSlider.on('change', (value: number) => {
+            const valueSpan = speedSection.querySelector('.speed-value');
+            if (valueSpan) valueSpan.textContent = value.toFixed(1);
+        });
+        speedContainer.append(this._speechSpeedSlider);
+        speedSection.appendChild(speedContainer.dom);
+        this._audioOptionsContainer.appendChild(speedSection);
+
+        content.appendChild(this._audioOptionsContainer);
+
+        // ======== MUSIC OPTIONS ========
+        this._musicOptionsContainer = document.createElement('div');
+        this._musicOptionsContainer.className = 'pajamadot-aigc-music-options';
+        this._musicOptionsContainer.style.display = 'none';
+
+        // Preset selector
+        const presetSection = document.createElement('div');
+        presetSection.className = 'pajamadot-aigc-section';
+        presetSection.innerHTML = `<label class="pajamadot-aigc-label">Preset (optional)</label>`;
+        const presetContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._musicPresetSelect = new SelectInput({
+            options: [
+                { v: '', t: 'Custom (use prompt)' },
+                ...MUSIC_PRESETS.map(p => ({ v: p.id, t: `${p.name} - ${p.description}` }))
+            ],
+            value: ''
+        });
+        this._musicPresetSelect.on('change', (value: string) => {
+            if (value) {
+                const preset = MUSIC_PRESETS.find(p => p.id === value);
+                if (preset) {
+                    if (this._musicGenreSelect) this._musicGenreSelect.value = preset.genre;
+                    if (this._musicMoodSelect) this._musicMoodSelect.value = preset.mood;
+                }
+            }
+        });
+        presetContainer.append(this._musicPresetSelect);
+        presetSection.appendChild(presetContainer.dom);
+        this._musicOptionsContainer.appendChild(presetSection);
+
+        // Genre and Mood row
+        const musicStyleRow = document.createElement('div');
+        musicStyleRow.className = 'pajamadot-aigc-options';
+
+        const genreSection = document.createElement('div');
+        genreSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        genreSection.innerHTML = `<label class="pajamadot-aigc-label">Genre</label>`;
+        const genreContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._musicGenreSelect = new SelectInput({
+            options: [
+                { v: 'ambient', t: 'Ambient' },
+                { v: 'orchestral', t: 'Orchestral' },
+                { v: 'electronic', t: 'Electronic' },
+                { v: 'folk', t: 'Folk' },
+                { v: 'classical', t: 'Classical' },
+                { v: 'cinematic', t: 'Cinematic' },
+                { v: 'chiptune', t: 'Chiptune' },
+                { v: 'lofi', t: 'Lo-Fi' }
+            ],
+            value: 'ambient'
+        });
+        genreContainer.append(this._musicGenreSelect);
+        genreSection.appendChild(genreContainer.dom);
+        musicStyleRow.appendChild(genreSection);
+
+        const moodSection = document.createElement('div');
+        moodSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        moodSection.innerHTML = `<label class="pajamadot-aigc-label">Mood</label>`;
+        const moodContainer = new Container({ class: 'pajamadot-aigc-select-wrap' });
+        this._musicMoodSelect = new SelectInput({
+            options: [
+                { v: 'peaceful', t: 'Peaceful' },
+                { v: 'tense', t: 'Tense' },
+                { v: 'epic', t: 'Epic' },
+                { v: 'mysterious', t: 'Mysterious' },
+                { v: 'happy', t: 'Happy' },
+                { v: 'sad', t: 'Sad' },
+                { v: 'adventurous', t: 'Adventurous' }
+            ],
+            value: 'peaceful'
+        });
+        moodContainer.append(this._musicMoodSelect);
+        moodSection.appendChild(moodContainer.dom);
+        musicStyleRow.appendChild(moodSection);
+
+        this._musicOptionsContainer.appendChild(musicStyleRow);
+
+        // Duration and Loop row
+        const musicDurationRow = document.createElement('div');
+        musicDurationRow.className = 'pajamadot-aigc-options';
+
+        const musicDurationSection = document.createElement('div');
+        musicDurationSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        musicDurationSection.innerHTML = `<label class="pajamadot-aigc-label">Duration: <span class="music-duration-value">30</span>s</label>`;
+        const musicDurationContainer = new Container({ class: 'pajamadot-aigc-slider-wrap' });
+        this._musicDurationSlider = new SliderInput({
+            min: 15,
+            max: 120,
+            step: 15,
+            value: 30
+        });
+        this._musicDurationSlider.on('change', (value: number) => {
+            const valueSpan = musicDurationSection.querySelector('.music-duration-value');
+            if (valueSpan) valueSpan.textContent = value.toString();
+        });
+        musicDurationContainer.append(this._musicDurationSlider);
+        musicDurationSection.appendChild(musicDurationContainer.dom);
+        musicDurationRow.appendChild(musicDurationSection);
+
+        const loopSection = document.createElement('div');
+        loopSection.className = 'pajamadot-aigc-section pajamadot-aigc-half';
+        loopSection.innerHTML = `<label class="pajamadot-aigc-label">Loopable</label>`;
+        const loopContainer = new Container({ class: 'pajamadot-aigc-toggle-wrap' });
+        this._musicLoopableToggle = new BooleanInput({ value: true });
+        loopContainer.append(this._musicLoopableToggle);
+        loopSection.appendChild(loopContainer.dom);
+        musicDurationRow.appendChild(loopSection);
+
+        this._musicOptionsContainer.appendChild(musicDurationRow);
+
+        content.appendChild(this._musicOptionsContainer);
+
         // Preview area
         this._previewContainer = document.createElement('div');
         this._previewContainer.className = 'pajamadot-aigc-preview';
@@ -520,25 +886,126 @@ class AssetGenerationModal {
         if (this._promptInput) {
             const placeholders: Record<string, string> = {
                 image: 'e.g., seamless stone brick texture, fantasy sword icon, game UI button...',
-                mesh: 'e.g., low-poly medieval castle tower, sci-fi spaceship, treasure chest...'
+                mesh: 'e.g., low-poly medieval castle tower, sci-fi spaceship, treasure chest...',
+                video: 'e.g., cinematic flythrough of a fantasy castle, character walking animation...',
+                audio: 'e.g., "Welcome to our game!" or footsteps on gravel, door creaking...',
+                music: 'e.g., peaceful ambient music for a forest scene, epic battle theme...'
             };
             this._promptInput.placeholder = placeholders[type] || '';
         }
 
-        // Show/hide mesh-specific UI
-        if (type === 'mesh') {
-            if (this._meshModeContainer) this._meshModeContainer.style.display = 'block';
-            this._updateMeshModeUI();
-        } else {
-            if (this._meshModeContainer) this._meshModeContainer.style.display = 'none';
-            if (this._imageOptionsContainer) this._imageOptionsContainer.style.display = 'none';
-            if (this._textOptionsContainer) this._textOptionsContainer.style.display = 'none';
+        // Hide all type-specific containers first
+        if (this._meshModeContainer) this._meshModeContainer.style.display = 'none';
+        if (this._imageOptionsContainer) this._imageOptionsContainer.style.display = 'none';
+        if (this._textOptionsContainer) this._textOptionsContainer.style.display = 'none';
+        if (this._videoModeContainer) this._videoModeContainer.style.display = 'none';
+        if (this._videoOptionsContainer) this._videoOptionsContainer.style.display = 'none';
+        if (this._audioModeContainer) this._audioModeContainer.style.display = 'none';
+        if (this._audioOptionsContainer) this._audioOptionsContainer.style.display = 'none';
+        if (this._musicOptionsContainer) this._musicOptionsContainer.style.display = 'none';
+
+        // Show type-specific UI
+        switch (type) {
+            case 'mesh':
+                if (this._meshModeContainer) this._meshModeContainer.style.display = 'block';
+                this._updateMeshModeUI();
+                break;
+            case 'video':
+                if (this._videoModeContainer) this._videoModeContainer.style.display = 'block';
+                if (this._videoOptionsContainer) this._videoOptionsContainer.style.display = 'block';
+                this._updateVideoModeUI();
+                break;
+            case 'audio':
+                if (this._audioModeContainer) this._audioModeContainer.style.display = 'block';
+                if (this._audioOptionsContainer) this._audioOptionsContainer.style.display = 'block';
+                this._updateAudioModeUI();
+                break;
+            case 'music':
+                if (this._musicOptionsContainer) this._musicOptionsContainer.style.display = 'block';
+                break;
         }
 
         // Reset result
         this._currentResult = null;
         if (this._saveBtn) {
             this._saveBtn.enabled = false;
+        }
+    }
+
+    private _switchVideoMode(mode: 'text_to_video' | 'image_to_video'): void {
+        this._currentVideoMode = mode;
+
+        // Update mode button states
+        this._videoModeContainer?.querySelectorAll('.pajamadot-mesh-mode-btn').forEach(btn => {
+            const btnEl = btn as HTMLElement;
+            if (btnEl.dataset.mode === mode) {
+                btnEl.classList.add('active');
+            } else {
+                btnEl.classList.remove('active');
+            }
+        });
+
+        // Update tab cost display
+        const videoTab = this._modal?.querySelector('.pajamadot-aigc-tab[data-type="video"] .tab-cost');
+        if (videoTab) {
+            const cost = mode === 'image_to_video' ? 20 : 25;
+            videoTab.textContent = `${cost}cr`;
+        }
+
+        this._updateVideoModeUI();
+    }
+
+    private _updateVideoModeUI(): void {
+        const isImageMode = this._currentVideoMode === 'image_to_video';
+        const imageSection = this._videoOptionsContainer?.querySelector('.pajamadot-video-image-section') as HTMLElement;
+        if (imageSection) {
+            imageSection.style.display = isImageMode ? 'block' : 'none';
+        }
+
+        // Update prompt label
+        const promptLabel = this._modal?.querySelector('.pajamadot-aigc-content > .pajamadot-aigc-section:first-child .pajamadot-aigc-label');
+        if (promptLabel && this._currentType === 'video') {
+            promptLabel.textContent = isImageMode
+                ? 'Describe the motion/animation'
+                : 'Describe what you want to generate';
+        }
+    }
+
+    private _switchAudioMode(mode: 'tts' | 'sfx'): void {
+        this._currentAudioMode = mode;
+
+        // Update mode button states
+        this._audioModeContainer?.querySelectorAll('.pajamadot-mesh-mode-btn').forEach(btn => {
+            const btnEl = btn as HTMLElement;
+            if (btnEl.dataset.mode === mode) {
+                btnEl.classList.add('active');
+            } else {
+                btnEl.classList.remove('active');
+            }
+        });
+
+        // Update tab cost display
+        const audioTab = this._modal?.querySelector('.pajamadot-aigc-tab[data-type="audio"] .tab-cost');
+        if (audioTab) {
+            audioTab.textContent = mode === 'sfx' ? '8cr' : '5cr';
+        }
+
+        this._updateAudioModeUI();
+    }
+
+    private _updateAudioModeUI(): void {
+        const isTTS = this._currentAudioMode === 'tts';
+        const ttsOptions = this._audioOptionsContainer?.querySelectorAll('.pajamadot-tts-options');
+        ttsOptions?.forEach(el => {
+            (el as HTMLElement).style.display = isTTS ? 'flex' : 'none';
+        });
+
+        // Update prompt label
+        const promptLabel = this._modal?.querySelector('.pajamadot-aigc-content > .pajamadot-aigc-section:first-child .pajamadot-aigc-label');
+        if (promptLabel && this._currentType === 'audio') {
+            promptLabel.textContent = isTTS
+                ? 'Enter the text to speak'
+                : 'Describe the sound effect';
         }
     }
 
@@ -651,6 +1118,15 @@ class AssetGenerationModal {
                     break;
                 case 'mesh':
                     result = await this._generateMesh(prompt, style);
+                    break;
+                case 'video':
+                    result = await this._generateVideo(prompt);
+                    break;
+                case 'audio':
+                    result = await this._generateAudio(prompt);
+                    break;
+                case 'music':
+                    result = await this._generateMusic(prompt);
                     break;
             }
 
@@ -808,12 +1284,136 @@ class AssetGenerationModal {
         }
     }
 
+    private async _generateVideo(prompt: string): Promise<any> {
+        const style = (this._videoStyleSelect?.value || 'cinematic') as VideoStyle;
+        const motion = (this._videoMotionSelect?.value || 'moderate') as MotionIntensity;
+        const duration = this._videoDurationSlider?.value || 5;
+
+        if (this._currentVideoMode === 'image_to_video') {
+            const imageUrl = this._videoImageUrlInput?.value?.trim();
+            if (!imageUrl) {
+                throw new Error('Please provide an image URL for image-to-video');
+            }
+
+            this._setStatus('Starting image-to-video conversion...', 'loading');
+            return await videoClient.generateVideoFromImage(
+                {
+                    imageUrl,
+                    prompt,
+                    duration,
+                    motion,
+                    style
+                },
+                (progress, message) => {
+                    this._setStatus(message, 'loading');
+                }
+            );
+        } else {
+            this._setStatus('Starting video generation...', 'loading');
+            return await videoClient.generateVideo(
+                {
+                    prompt,
+                    style,
+                    motion,
+                    duration,
+                    aspectRatio: '16:9'
+                },
+                (progress, message) => {
+                    this._setStatus(message, 'loading');
+                }
+            );
+        }
+    }
+
+    private async _generateAudio(prompt: string): Promise<any> {
+        if (this._currentAudioMode === 'sfx') {
+            this._setStatus('Generating sound effect...', 'loading');
+            return await audioClient.generateSoundEffect(
+                { prompt, duration: 5 },
+                (progress, message) => {
+                    this._setStatus(message, 'loading');
+                }
+            );
+        } else {
+            const voiceStyle = (this._voiceStyleSelect?.value || 'neutral') as VoiceStyle;
+            const voiceGender = (this._voiceGenderSelect?.value || 'female') as VoiceGender;
+            const speed = this._speechSpeedSlider?.value || 1.0;
+
+            this._setStatus('Generating speech...', 'loading');
+            return await audioClient.generateSpeech(
+                {
+                    text: prompt,
+                    voiceStyle,
+                    voiceGender,
+                    speed
+                },
+                (progress, message) => {
+                    this._setStatus(message, 'loading');
+                }
+            );
+        }
+    }
+
+    private async _generateMusic(prompt: string): Promise<any> {
+        const presetId = this._musicPresetSelect?.value;
+        const genre = (this._musicGenreSelect?.value || 'ambient') as MusicGenre;
+        const mood = (this._musicMoodSelect?.value || 'peaceful') as MusicMood;
+        const duration = this._musicDurationSlider?.value || 30;
+        const loopable = this._musicLoopableToggle?.value ?? true;
+
+        this._setStatus('Starting music generation...', 'loading');
+
+        if (presetId) {
+            return await musicClient.generateFromPreset(
+                presetId,
+                { duration, loopable, customPrompt: prompt || undefined },
+                (progress, message) => {
+                    this._setStatus(message, 'loading');
+                }
+            );
+        } else {
+            return await musicClient.generateMusic(
+                {
+                    prompt,
+                    genre,
+                    mood,
+                    duration,
+                    loopable
+                },
+                (progress, message) => {
+                    this._setStatus(message, 'loading');
+                }
+            );
+        }
+    }
+
     private _showPreview(url: string): void {
         if (!this._previewContainer) return;
 
-        this._previewContainer.innerHTML = `
-            <img src="${url}" alt="Generated preview" class="pajamadot-preview-image" />
-        `;
+        // Different preview based on current type
+        switch (this._currentType) {
+            case 'video':
+                this._previewContainer.innerHTML = `
+                    <video src="${url}" controls autoplay muted class="pajamadot-preview-video"></video>
+                `;
+                break;
+            case 'audio':
+            case 'music':
+                const label = this._currentType === 'music' ? 'Music' : 'Audio';
+                const icon = this._currentType === 'music' ? '🎵' : '🔊';
+                this._previewContainer.innerHTML = `
+                    <div class="pajamadot-audio-preview">
+                        <span class="audio-icon">${icon}</span>
+                        <span class="audio-label">${label} Generated</span>
+                        <audio src="${url}" controls class="pajamadot-preview-audio"></audio>
+                    </div>
+                `;
+                break;
+            default:
+                this._previewContainer.innerHTML = `
+                    <img src="${url}" alt="Generated preview" class="pajamadot-preview-image" />
+                `;
+        }
     }
 
     private _showPreviewPlaceholder(): void {
@@ -860,25 +1460,41 @@ class AssetGenerationModal {
 
             let result;
 
-            if (this._currentType === 'mesh') {
-                // Import as 3D model
-                result = await assetImporter.importModelFromUrl(url, assetName, {
-                    folder: folder,
-                    tags: ['aigc', 'mesh', '3d-model']
-                });
-            } else {
-                // Import as texture
-                result = await assetImporter.importTextureFromUrl(url, assetName, {
-                    folder: folder,
-                    tags: ['aigc', 'image', 'texture']
-                });
+            switch (this._currentResult?.type || this._currentType) {
+                case 'mesh':
+                    result = await assetImporter.importModelFromUrl(url, assetName, {
+                        folder: folder,
+                        tags: ['aigc', 'mesh', '3d-model']
+                    });
+                    break;
+                case 'video':
+                    result = await assetImporter.importVideoFromUrl(url, assetName, {
+                        folder: folder,
+                        tags: ['aigc', 'video']
+                    });
+                    break;
+                case 'audio':
+                case 'music':
+                    const audioTags = this._currentType === 'music'
+                        ? ['aigc', 'music', 'audio']
+                        : ['aigc', 'audio', this._currentAudioMode === 'sfx' ? 'sfx' : 'voiceover'];
+                    result = await assetImporter.importAudioFromUrl(url, assetName, {
+                        folder: folder,
+                        tags: audioTags
+                    });
+                    break;
+                default:
+                    result = await assetImporter.importTextureFromUrl(url, assetName, {
+                        folder: folder,
+                        tags: ['aigc', 'image', 'texture']
+                    });
             }
 
             if (result.success && result.asset) {
                 // Add AIGC metadata
                 assetImporter.addAIGCMetadata(result.asset, {
                     prompt: prompt,
-                    model: 'flux-schnell',
+                    model: this._getModelName(),
                     generatedAt: new Date()
                 });
 
@@ -892,6 +1508,17 @@ class AssetGenerationModal {
         } catch (error) {
             console.error('[AIGC] Import error:', error);
             throw error;
+        }
+    }
+
+    private _getModelName(): string {
+        switch (this._currentType) {
+            case 'image': return 'flux-schnell';
+            case 'mesh': return this._currentMeshMode === 'text_to_3d' ? 'meshy-v6' : 'trellis';
+            case 'video': return 'minimax';
+            case 'audio': return 'elevenlabs';
+            case 'music': return 'suno';
+            default: return 'unknown';
         }
     }
 
@@ -1569,6 +2196,53 @@ class AssetGenerationModal {
             .pajamadot-aigc-label .polycount-value {
                 color: var(--color-primary, #a855f7);
                 font-weight: 600;
+            }
+
+            /* Video preview */
+            .pajamadot-preview-video {
+                width: 100%;
+                max-height: 200px;
+                border-radius: 6px;
+                background: #000;
+            }
+
+            /* Audio preview */
+            .pajamadot-audio-preview {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+                background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+                border-radius: 8px;
+            }
+
+            .pajamadot-audio-preview .audio-icon {
+                font-size: 48px;
+                margin-bottom: 12px;
+            }
+
+            .pajamadot-audio-preview .audio-label {
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--color-text, #fff);
+                margin-bottom: 16px;
+            }
+
+            .pajamadot-preview-audio {
+                width: 100%;
+                max-width: 280px;
+                height: 40px;
+            }
+
+            /* Video image section */
+            .pajamadot-video-image-section {
+                margin-top: 8px;
+            }
+
+            /* TTS options row display */
+            .pajamadot-tts-options {
+                display: flex;
             }
 
             /* Async job started UI */

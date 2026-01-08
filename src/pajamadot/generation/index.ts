@@ -16,6 +16,17 @@ export * from './generation-client';
 export * from './texture-client';
 export * from './mesh-client';
 export * from './video-client';
+export * from './audio-client';
+export * from './music-client';
+
+// Image editing (inpainting, style transfer, etc.)
+export * from './image-editor-client';
+
+// Batch generation
+export * from './batch-generator';
+
+// Presets management
+export * from './presets-manager';
 
 // Asset import utilities
 export * from './asset-importer';

@@ -42,11 +42,15 @@ import './entity';
 
 // AIGC Generation (Phase 9)
 import './generation';
+export * from './generation';
 
-// Asset Browser Integration (Phase 10) - Context menus, overlays, filters
+// Visual Novel System (Phase 10)
+export * from './visual-novel';
+
+// Asset Browser Integration (Phase 12) - Context menus, overlays, filters
 import './browser';
 
-// Toolbar Integration (Phase 11) - AIGC button in asset panel
+// Toolbar Integration (Phase 13) - AIGC button in asset panel
 import './toolbar/aigc-button';
 
 // Inspector integration (must be last - overrides assets:edit after everything is loaded)
