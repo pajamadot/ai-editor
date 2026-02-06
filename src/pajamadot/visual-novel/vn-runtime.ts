@@ -31,28 +31,112 @@ import { getDefaultRuntimeState, getDefaultVNSettings } from './vn-types';
 declare const pc: any;
 
 /**
- * Expression evaluator for conditions
+ * Safe expression evaluator for conditions (CSP-compliant, no eval/new Function).
+ * Supports: variable lookups, numbers, strings, booleans, null,
+ * comparisons (==, !=, >, <, >=, <=), boolean logic (and/&&, or/||, not/!), parentheses.
  */
 function evaluateCondition(condition: string, variables: Record<string, any>): boolean {
     if (!condition || condition.trim() === '') return true;
 
     try {
-        // Simple expression evaluation (secure - only allows variable access and basic operators)
-        // Format: "variableName == value" or "variableName > 5" etc.
-        const safeCondition = condition
-            .replace(/([a-zA-Z_][a-zA-Z0-9_]*)/g, (match) => {
-                if (['true', 'false', 'null', 'undefined', 'and', 'or', 'not'].includes(match)) {
-                    return match === 'and' ? '&&' : match === 'or' ? '||' : match === 'not' ? '!' : match;
-                }
-                return `vars["${match}"]`;
-            });
-
-        const evalFunc = new Function('vars', `return ${safeCondition};`);
-        return Boolean(evalFunc(variables));
+        return Boolean(safeEvalExpr(condition, variables));
     } catch (error) {
         console.warn('[VNRuntime] Failed to evaluate condition:', condition, error);
         return false;
     }
+}
+
+type CondToken = { t: 'num'; v: number } | { t: 'str'; v: string } | { t: 'bool'; v: boolean }
+    | { t: 'nil'; v: null } | { t: 'id'; v: string } | { t: 'op'; v: string } | { t: 'lp'; v: null } | { t: 'rp'; v: null };
+
+function tokenizeCondition(expr: string): CondToken[] {
+    const out: CondToken[] = [];
+    let i = 0;
+    while (i < expr.length) {
+        if (/\s/.test(expr[i])) { i++; continue; }
+        if (/\d/.test(expr[i])) {
+            let n = '';
+            while (i < expr.length && /[\d.]/.test(expr[i])) n += expr[i++];
+            out.push({ t: 'num', v: parseFloat(n) });
+            continue;
+        }
+        if (expr[i] === '"' || expr[i] === "'") {
+            const q = expr[i++]; let s = '';
+            while (i < expr.length && expr[i] !== q) s += expr[i++];
+            if (i < expr.length) i++;
+            out.push({ t: 'str', v: s });
+            continue;
+        }
+        const three = expr.slice(i, i + 3);
+        if (three === '===' || three === '!==') { out.push({ t: 'op', v: three }); i += 3; continue; }
+        const two = expr.slice(i, i + 2);
+        if (['==', '!=', '>=', '<=', '&&', '||'].includes(two)) { out.push({ t: 'op', v: two }); i += 2; continue; }
+        if ('><!='.includes(expr[i])) { out.push({ t: 'op', v: expr[i++] }); continue; }
+        if (expr[i] === '(') { out.push({ t: 'lp', v: null }); i++; continue; }
+        if (expr[i] === ')') { out.push({ t: 'rp', v: null }); i++; continue; }
+        if (/[a-zA-Z_]/.test(expr[i])) {
+            let id = '';
+            while (i < expr.length && /[a-zA-Z0-9_]/.test(expr[i])) id += expr[i++];
+            if (id === 'true') out.push({ t: 'bool', v: true });
+            else if (id === 'false') out.push({ t: 'bool', v: false });
+            else if (id === 'null' || id === 'undefined') out.push({ t: 'nil', v: null });
+            else if (id === 'and' || id === 'or' || id === 'not') out.push({ t: 'op', v: id });
+            else out.push({ t: 'id', v: id });
+            continue;
+        }
+        i++;
+    }
+    return out;
+}
+
+function safeEvalExpr(expr: string, vars: Record<string, any>): any {
+    const tokens = tokenizeCondition(expr);
+    let pos = 0;
+    const peek = () => tokens[pos] as CondToken | undefined;
+    const next = () => tokens[pos++];
+
+    function parseOr(): any {
+        let left = parseAnd();
+        while (peek()?.t === 'op' && (peek()!.v === '||' || peek()!.v === 'or')) { next(); left = left || parseAnd(); }
+        return left;
+    }
+    function parseAnd(): any {
+        let left = parseNot();
+        while (peek()?.t === 'op' && (peek()!.v === '&&' || peek()!.v === 'and')) { next(); left = left && parseNot(); }
+        return left;
+    }
+    function parseNot(): any {
+        if (peek()?.t === 'op' && (peek()!.v === '!' || peek()!.v === 'not')) { next(); return !parseNot(); }
+        return parseCmp();
+    }
+    function parseCmp(): any {
+        let left = parsePrimary();
+        const tok = peek();
+        if (tok?.t === 'op' && ['==', '!=', '===', '!==', '>', '<', '>=', '<='].includes(tok.v as string)) {
+            const op = (next() as { v: string }).v; const right = parsePrimary();
+            switch (op) {
+                case '==': case '===': return left == right;
+                case '!=': case '!==': return left != right;
+                case '>': return left > right;  case '<': return left < right;
+                case '>=': return left >= right; case '<=': return left <= right;
+            }
+        }
+        return left;
+    }
+    function parsePrimary(): any {
+        const tok = peek();
+        if (!tok) return undefined;
+        if (tok.t === 'num') { next(); return tok.v; }
+        if (tok.t === 'str') { next(); return tok.v; }
+        if (tok.t === 'bool') { next(); return tok.v; }
+        if (tok.t === 'nil') { next(); return null; }
+        if (tok.t === 'id') { next(); return vars[(tok as { v: string }).v]; }
+        if (tok.t === 'lp') { next(); const v = parseOr(); if (peek()?.t === 'rp') next(); return v; }
+        next();
+        return undefined;
+    }
+
+    return parseOr();
 }
 
 /**
