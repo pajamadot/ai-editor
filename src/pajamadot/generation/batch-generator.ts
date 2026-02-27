@@ -167,7 +167,7 @@ class BatchGenerator {
                 case 'image':
                     result = await generationClient.generateImage({
                         prompt: item.prompt,
-                        model: item.options?.model || 'flux-schnell',
+                        model: item.options?.model || 'nano-banana-2',
                         aspectRatio: item.options?.aspectRatio || '1:1'
                     });
                     break;

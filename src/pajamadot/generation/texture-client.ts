@@ -55,7 +55,7 @@ class TextureClient {
             method: 'POST',
             body: JSON.stringify({
                 prompt: this.buildTexturePrompt(request),
-                model: 'flux-schnell',
+                model: 'nano-banana-2',
                 aspectRatio: '1:1', // Textures are typically square
                 style: request.style
             })

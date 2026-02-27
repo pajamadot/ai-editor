@@ -1215,7 +1215,7 @@ class AssetGenerationModal {
         return await generationClient.generateImage({
             prompt: fullPrompt,
             aspectRatio: aspect,
-            model: 'flux-schnell'
+            model: 'nano-banana-2'
         });
     }
 
@@ -1513,7 +1513,7 @@ class AssetGenerationModal {
 
     private _getModelName(): string {
         switch (this._currentType) {
-            case 'image': return 'flux-schnell';
+            case 'image': return 'nano-banana-2';
             case 'mesh': return this._currentMeshMode === 'text_to_3d' ? 'meshy-v6' : 'trellis';
             case 'video': return 'minimax';
             case 'audio': return 'elevenlabs';

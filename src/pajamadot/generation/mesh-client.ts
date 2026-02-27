@@ -210,7 +210,7 @@ class MeshClient {
             method: 'POST',
             body: JSON.stringify({
                 prompt: meshPrompt,
-                model: 'flux-schnell',
+                model: 'nano-banana-2',
                 aspectRatio: '1:1',
                 style: style ?? 'clean 3D render'
             })

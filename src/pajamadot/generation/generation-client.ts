@@ -137,7 +137,7 @@ class GenerationClient {
             method: 'POST',
             body: JSON.stringify({
                 prompt: request.prompt,
-                model: request.model ?? 'flux-schnell',
+                model: request.model ?? 'nano-banana-2',
                 aspectRatio: request.aspectRatio ?? '1:1',
                 style: request.style
             })
